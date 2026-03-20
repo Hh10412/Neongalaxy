@@ -1,7 +1,8 @@
-const CACHE_NAME = 'neon-galaxy-v4.5'; // Đổi tên này (v4.6, v4.7...) để kích hoạt cập nhật
+const CACHE_NAME = 'neon-galaxy-v4.5.1'; // Đổi tên này (v4.6, v4.7...) để kích hoạt cập nhật
 const urlsToCache = [
     './',
     './index.html',
+    './manifest.json',
     'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap',
     'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js'
 ];
