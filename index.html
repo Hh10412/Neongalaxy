@@ -308,7 +308,27 @@
     const tPool = new ObjectPool(() => ({}), 20);  // Text hiển thị
     
     // ------------------------------------
+        /* ================= HỆ THỐNG BOSS & VŨ KHÍ ================= */
+    const BULLET_PATTERNS = { SPREAD: 'spread', LASER: 'laser', SPIRAL: 'spiral', HOMING: 'homing', WAVE: 'wave' };
     
+    function pickRandomWeapons(allowedTypes, slotCount) {
+        const shuffled = [...allowedTypes].sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, Math.min(slotCount, allowedTypes.length));
+    }
+    
+    const BOSS_TEMPLATES = [
+        { id: 1, name: "Vanguard Alpha", hpMult: 20, slots: 1, allowed: [BULLET_PATTERNS.SPREAD, BULLET_PATTERNS.LASER], color: '#ff3333' },
+        { id: 2, name: "Spinner Drone", hpMult: 30, slots: 2, allowed: [BULLET_PATTERNS.SPIRAL, BULLET_PATTERNS.SPREAD], color: '#33ff33' },
+        { id: 3, name: "Laser Core", hpMult: 40, slots: 2, allowed: [BULLET_PATTERNS.LASER, BULLET_PATTERNS.HOMING], color: '#3333ff' },
+        { id: 4, name: "Wave Rider", hpMult: 50, slots: 2, allowed: [BULLET_PATTERNS.WAVE, BULLET_PATTERNS.SPIRAL], color: '#00ffff' },
+        { id: 5, name: "Hunter Killer", hpMult: 60, slots: 3, allowed: [BULLET_PATTERNS.HOMING, BULLET_PATTERNS.SPREAD, BULLET_PATTERNS.LASER], color: '#ff00ff' },
+        { id: 6, name: "Galaxy Crusher", hpMult: 70, slots: 2, allowed: [BULLET_PATTERNS.WAVE, BULLET_PATTERNS.SPREAD], color: '#ffff00' },
+        { id: 7, name: "Neon Phantom", hpMult: 80, slots: 3, allowed: [BULLET_PATTERNS.SPIRAL, BULLET_PATTERNS.LASER, BULLET_PATTERNS.HOMING], color: '#ffffff' },
+        { id: 8, name: "Aegis Defender", hpMult: 90, slots: 1, allowed: [BULLET_PATTERNS.SPIRAL, BULLET_PATTERNS.WAVE], color: '#ffaa00' },
+        { id: 9, name: "Oblivion Engine", hpMult: 120, slots: 3, allowed: [BULLET_PATTERNS.SPREAD, BULLET_PATTERNS.LASER, BULLET_PATTERNS.SPIRAL, BULLET_PATTERNS.WAVE], color: '#b200ff' },
+        { id: 10, name: "Neural Overlord", hpMult: 200, slots: 4, allowed: Object.values(BULLET_PATTERNS), color: '#ff0000' }
+    ];
+
     /* ================= BẢO MẬT CHECKSUM (CHỐNG HACK) ================= */
     let securitySeed = Math.floor(Math.random() * 999) + 100; 
     let coinHash = 0;
@@ -750,10 +770,24 @@
         enemies.push(e);  
     }
       
-    function spawnBoss(){ 
-        let hp = player.maxHp * 40 * (1 + game.lvl * 0.1); uiCache.bossHpBar.parentElement.parentElement.style.display = 'block'; 
+        function spawnBoss(){ 
+        // Bốc ngẫu nhiên 1 trong 10 con Boss
+        let template = BOSS_TEMPLATES[Math.floor(Math.random() * BOSS_TEMPLATES.length)];
+        let hp = player.maxHp * template.hpMult * (1 + game.lvl * 0.1); 
+        
+        uiCache.bossHpBar.parentElement.parentElement.style.display = 'block'; 
+        // Tự động đổi tên Boss trên UI
+        uiCache.bossHpBar.parentElement.previousElementSibling.innerText = template.name.toUpperCase();
+        
         let e = ePool.get();
-        Object.assign(e, { type:'boss', x: W/2, y: -100, r: 60, hp: hp, maxHp: hp, s: 1.5, color:'#f0f', angle:0, fireTimer: 0 });
+        if(!e) return;
+
+        Object.assign(e, { 
+            type:'boss', name: template.name, x: W/2, y: -100, r: 60, 
+            hp: hp, maxHp: hp, s: 1.5, color: template.color, angle: 0, fireTimer: 0,
+            equippedWeapons: pickRandomWeapons(template.allowed, template.slots)
+        });
+        
         enemies.push(e); 
         game.boss = true; 
     }  
@@ -824,18 +858,38 @@
             } 
         }
 
-        if(e.type === 'boss') { 
+                if(e.type === 'boss') { 
             if(e.y < 150) e.y += e.s; 
             else e.x = W/2 + Math.sin(game.frame * 0.02) * (W/3); 
             e.fireTimer++; 
             let bossBulletDmg = (player.maxHp / 10) * (game.lvl / 5); 
-            if(e.fireTimer % 100 === 0) { 
-                for(let a=0; a<Math.PI*2; a+=Math.PI/6) spawnBullet({x:e.x, y:e.y, vx:Math.cos(a)*5, vy:Math.sin(a)*5, dmg: bossBulletDmg, c:e.color, isEnemy:true, r:10}); 
-            } 
-            if(e.fireTimer % 60 === 30) { 
-                let ang = Math.atan2(player.y - e.y, player.x - e.x); 
-                spawnBullet({x:e.x, y:e.y, vx:Math.cos(ang)*8, vy:Math.sin(ang)*8, dmg: bossBulletDmg, c:'#ff0', isEnemy:true, r:12}); 
-            } 
+
+            // Boss tự kích hoạt vũ khí dựa theo mảng random đã nhận lúc Spawn
+            e.equippedWeapons.forEach(weapon => {
+                // ĐẠN TỎA: Bắn 1 vòng tròn mỗi 100 nhịp
+                if(weapon === BULLET_PATTERNS.SPREAD && e.fireTimer % 100 === 0) {
+                    for(let a=0; a<Math.PI*2; a+=Math.PI/6) spawnBullet({x:e.x, y:e.y, vx:Math.cos(a)*5, vy:Math.sin(a)*5, dmg: bossBulletDmg, c:e.color, isEnemy:true, r:10});
+                }
+                // TIA LASER: Chớp tia bắn thẳng xuống mỗi 120 nhịp
+                else if(weapon === BULLET_PATTERNS.LASER && e.fireTimer % 120 === 60) {
+                    spawnBullet({x:e.x, y:e.y + 40, vx:0, vy:18, dmg: bossBulletDmg*2, c:'#fff', isEnemy:true, w:12, h:80, type:'pierce'});
+                }
+                // ĐẠN ĐUỔI: Bám theo người chơi mỗi 90 nhịp
+                else if(weapon === BULLET_PATTERNS.HOMING && e.fireTimer % 90 === 30) {
+                    let ang = Math.atan2(player.y - e.y, player.x - e.x);
+                    spawnBullet({x:e.x, y:e.y, vx:Math.cos(ang)*4, vy:Math.sin(ang)*4, dmg: bossBulletDmg, c:'#0f0', isEnemy:true, r:12, type:'homing'});
+                }
+                // XOAY TRÒN: Càn quét liên tục dạng xoáy
+                else if(weapon === BULLET_PATTERNS.SPIRAL && e.fireTimer % 12 === 0) {
+                    let sAng = e.fireTimer * 0.1;
+                    spawnBullet({x:e.x, y:e.y, vx:Math.cos(sAng)*6, vy:Math.sin(sAng)*6, dmg: bossBulletDmg*0.5, c:'#ff0', isEnemy:true, r:8});
+                    spawnBullet({x:e.x, y:e.y, vx:Math.cos(sAng+Math.PI)*6, vy:Math.sin(sAng+Math.PI)*6, dmg: bossBulletDmg*0.5, c:'#ff0', isEnemy:true, r:8});
+                }
+                // LƯỢN SÓNG: Phóng 5 viên dàn hàng ngang mỗi 80 nhịp
+                else if(weapon === BULLET_PATTERNS.WAVE && e.fireTimer % 80 === 0) {
+                    for(let i=-2; i<=2; i++) spawnBullet({x:e.x, y:e.y, vx:i*3, vy:7, dmg: bossBulletDmg, c:'#0ff', isEnemy:true, r:9});
+                }
+            });
         }
 
         if(e.type === 'rusher') { 
