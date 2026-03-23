@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"name="viewport">
-  <title>Neon Galaxy: Overdrive v5.6.1 - SECURE CLOUD</title>
+  <title>Neon Galaxy: Overdrive v5.7 - SECURE CLOUD</title>
   <meta content="yes"name="apple-mobile-web-app-capable">
   <meta content="black-translucent"name="apple-mobile-web-app-status-bar-style">
   <meta content="yes"name="mobile-web-app-capable">
@@ -14,18 +14,13 @@
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
-    <div id="introScreen" class="overlay">
-    <div id="introContainer" style="width: 90%; max-width: 600px; max-height: 80vh; padding: 25px; box-sizing: border-box; overflow-y: auto; font-family: 'Orbitron', monospace; background: rgba(15, 5, 5, 0.95); border: 2px solid var(--r); border-radius: 8px; box-shadow: 0 0 25px rgba(255, 50, 50, 0.4) inset; position: relative;">
-  <div style="color: #fff; background: var(--r); display: block; padding: 5px 15px; font-size: 12px; font-weight: 900; margin-bottom: 15px; letter-spacing: 2px; animation: blink 1s infinite; position: sticky; top: -25px; z-index: 10; text-align: center; border-bottom: 2px solid #000;">
-    [ HỆ THỐNG CẢNH BÁO XÂM LĂNG - TỐI MẬT ]
-  </div>
-  
-  <div id="introText" style="font-size: clamp(12px, 3.8vw, 15px); line-height: 1.8; color: #ff5555; text-shadow: 0 0 5px #ff0000; white-space: pre-wrap; word-break: break-word; text-align: left; padding-top: 10px;"></div>
-  
-  <button id="skipIntroBtn" class="btn-main" style="margin-top: 25px; display: none; width: 100%; background: var(--r); color: #fff; box-shadow: 0 0 15px var(--r);">CHẤP NHẬN TỬ CHIẾN</button>
+    <div id="introScreen" class="screen hidden" style="flex-direction:column; background:rgba(0,0,0,0.9);">
+    <div id="introContainer">
+        <div id="introHeader" class="sticky-header">[ TÍN HIỆU TỐI KHẨN ]</div>
+        <div id="introText" style="line-height:1.8; color:#ffcccc; text-align:left; font-size:15px;"></div>
+        <button id="skipIntroBtn" class="btn-main" style="margin-top:20px; display:none; width:100%;">TIẾP NHẬN NHIỆM VỤ</button>
+    </div>
 </div>
-
-  </div>  
 </div>
 
 <script>
@@ -56,26 +51,36 @@ let isIntroDone = false;
 
 function typeStory() {
     const container = document.getElementById('introContainer');
-    if (lineIndex >= Math.floor(story.length / 3)) skipBtn.style.display = "block";
+    const header = document.getElementById('introHeader');
     
+    // Kích hoạt hiệu ứng chớp tắt cho tiêu đề khi bắt đầu chạy chữ
+    header.classList.add('active-blink');
+
+    if (lineIndex >= 3) skipBtn.style.display = "block";
+
     if (lineIndex < story.length) {
         if (charIndex < story[lineIndex].length) {
             introTextEl.innerHTML += story[lineIndex].charAt(charIndex);
             charIndex++;
-            // Tự động cuộn xuống khi chữ tràn
+            
+            // Tự động cuộn xuống khi đầy chữ
             container.scrollTop = container.scrollHeight;
-            setTimeout(typeStory, 50); 
+            
+            setTimeout(typeStory, 40);
         } else {
             introTextEl.innerHTML += "<br><br>";
             lineIndex++;
             charIndex = 0;
+            
+            // Cuộn xuống khi xong một đoạn
             container.scrollTop = container.scrollHeight;
-            setTimeout(typeStory, 1000); 
+            
+            setTimeout(typeStory, 800);
         }
     } else {
-        if (!isIntroDone) { 
-            isIntroDone = true; 
-            skipBtn.innerText = "XUẤT PHÁT NGAY!"; 
+        if (!isIntroDone) {
+            isIntroDone = true;
+            skipBtn.innerText = "XUẤT PHÁT NGAY!";
         }
     }
 }
@@ -154,15 +159,33 @@ skipBtn.onclick = () => {
     <div id="changePassMsg"style="color:var(--r);font-size:12px;margin-bottom:15px;height:15px"></div>
     <div style="display:flex;flex-direction:column;align-items:center"><button class="btn-main"onclick="executeChangePass()"style="width:200px;margin-bottom:10px">LƯU THAY ĐỔI</button> <button class="btn-main"onclick="closeChangePass()"style="background:#333;color:#fff;width:200px;border:1px solid #555">HỦY BỎ</button></div>
   </div>
-  <div class="hidden overlay"id="menuScreen">
+    <div class="hidden overlay" id="menuScreen">
+    <div style="position:absolute; top:20px; left:20px; display:flex; gap:15px; z-index:100;">
+        <div id="btnGacha" onclick="openGacha()" style="position:relative; width:55px; height:55px; background:rgba(10,5,5,0.9); border:2px solid var(--p); border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 0 15px rgba(0,255,255,0.3); transition:0.2s;">
+            <span style="font-size:24px; filter:drop-shadow(0 0 5px var(--p));">🎁</span>
+            <span id="gachaTimerBadge" style="position:absolute; bottom:-10px; background:var(--bg); color:var(--p); font-size:9px; padding:2px 5px; border:1px solid var(--p); border-radius:5px; white-space:nowrap;">SẴN SÀNG</span>
+        </div>
+        <div id="btnQuest" onclick="openQuests()" style="position:relative; width:55px; height:55px; background:rgba(10,5,5,0.9); border:2px solid var(--gold); border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 0 15px rgba(255,215,0,0.3); transition:0.2s;">
+            <span style="font-size:24px; filter:drop-shadow(0 0 5px var(--gold));">📜</span>
+            <span id="questBadge" style="position:absolute; bottom:-10px; background:var(--bg); color:var(--gold); font-size:9px; padding:2px 5px; border:1px solid var(--gold); border-radius:5px; white-space:nowrap;">NHIỆM VỤ</span>
+        </div>
+    </div>
+
     <h1 style="font-size:50px;margin:0;text-shadow:0 0 20px var(--p),0 0 40px var(--s);color:#fff;text-align:center;font-style:italic">NEON<br><span style="color:var(--p)">GALAXY</span></h1>
-    <p style="font-size:12px;color:#aaa;letter-spacing:4px;margin-bottom:20px;text-shadow:0 0 5px #fff">OVERDRIVE v5.6.1 SECURE
-    <div style="background:rgba(0,255,255,.1);border:1px solid var(--p);padding:5px 15px;border-radius:20px;font-size:12px;margin-bottom:30px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:.2s;box-shadow:0 0 10px rgba(0,255,255,.2) inset"onclick="openProfile()"><img id="menuAvatar"src="https://api.dicebear.com/7.x/bottts/svg?seed=guest"style="width:26px;height:26px;border-radius:50%;background:#000"> <span>Phi công: <b id="menuUsername"style="color:var(--gold)">GUEST</b></span></div>
-    <button class="btn-main"onclick="openEquip()">TRANG BỊ (GEAR)</button> <button class="btn-main btn-sec"onclick="openShop()">NÂNG CẤP (UPGRADE)</button>
+    <p style="font-size:12px;color:#aaa;letter-spacing:4px;margin-bottom:20px;text-shadow:0 0 5px #fff">OVERDRIVE v5.7 SECURE</p>
+    
+    <div style="background:rgba(0,255,255,.1);border:1px solid var(--p);padding:5px 15px;border-radius:20px;font-size:12px;margin-bottom:30px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:.2s;box-shadow:0 0 10px rgba(0,255,255,.2) inset" onclick="openProfile()">
+        <img id="menuAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=guest" style="width:26px;height:26px;border-radius:50%;background:#000"> 
+        <span>Phi công: <b id="menuUsername" style="color:var(--gold)">GUEST</b></span>
+    </div>
+    
+    <button class="btn-main" onclick="openEquip()">TRANG BỊ (GEAR)</button> 
+    <button class="btn-main btn-sec" onclick="openShop()">NÂNG CẤP (UPGRADE)</button>
     <div style="display:flex;gap:10px"><button class="btn-main btn-small"onclick="openLeaderboard()"style="background:#333;color:#fff">🏆 BẢNG XẾP HẠNG</button> <button class="btn-main btn-small"onclick="window.AuthSys.openSwitchAccount()"style="background:#333;color:var(--r)">🔄 ĐỔI TÀI KHOẢN</button></div>
     <div style="height:20px"></div>
     <button class="btn-main" onclick="openModeScreen()" style="width:220px;font-size:20px;padding:20px;box-shadow:0 0 20px var(--p)">KHỞI ĐỘNG</button>
   </div>
+
     <div class="hidden overlay" id="lbScreen">
     <h2 style="color:var(--gold);text-shadow:0 0 10px var(--gold);margin-bottom:15px">ĐẠI SẢNH DANH VỌNG</h2>
     <div style="display:flex; gap:10px; margin-bottom:15px;">
@@ -249,7 +272,39 @@ skipBtn.onclick = () => {
             QUAY LẠI MENU
         </button>
     </div>
+  </div><div class="hidden overlay" id="gachaScreen" style="z-index: 2500;">
+    <div style="background:rgba(10,5,5,0.95); border:2px solid var(--p); padding:30px; border-radius:15px; text-align:center; box-shadow:0 0 30px rgba(0,255,255,0.3); max-width: 400px; width: 90%;">
+        <h2 style="color:var(--p); text-shadow:0 0 15px var(--p); margin-top:0;">TIẾP TẾ ĐẶC BIỆT</h2>
+        <div style="color:var(--gold); font-size:18px; font-weight:bold; margin-bottom:15px;">PHIẾU GACHA: <span id="gachaTicketCount">0</span> 🎫</div>
+        
+        <div id="gachaResult" style="min-height: 100px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); border:1px solid #555; border-radius:8px; margin-bottom:20px; padding:15px; font-size:14px; line-height:1.6;">
+            Hãy dùng Phiếu để quét trạm không gian nhận Vũ khí, Vỏ Tàu hoặc Vàng!
+        </div>
+
+        <button class="btn-main" id="btnFreeSpin" onclick="spinGacha(true)" style="background:var(--g); color:#000; width:100%; margin-bottom: 10px;">QUAY MIỄN PHÍ (Hồi sau 24h)</button>
+        <button class="btn-main" id="btnTicketSpin" onclick="spinGacha(false)" style="background:var(--p); color:#000; width:100%; margin-bottom: 15px;">QUAY BẰNG PHIẾU (1 🎫)</button>
+        
+        <button class="btn-main" onclick="closeGacha()" style="background:#333; color:#fff; width:100%; border: 1px solid #555;">QUAY LẠI MENU</button>
+    </div>
 </div>
+
+<div class="hidden overlay" id="questScreen" style="z-index: 2500;">
+    <div style="width:90%; max-width:500px; max-height:80vh; background:rgba(10,5,5,0.95); border:2px solid var(--gold); border-radius:8px; display:flex; flex-direction:column; box-shadow:0 0 20px rgba(255,215,0,0.3);">
+        <h2 style="color:var(--gold); text-align:center; margin:15px 0;">TRẠM NHIỆM VỤ</h2>
+        
+        <div class="lb-tabs" style="width:100%;">
+            <div class="lb-tab active" id="tabDaily" onclick="switchQuestTab('daily')">HẰNG NGÀY</div>
+            <div class="lb-tab" id="tabWeekly" onclick="switchQuestTab('weekly')">HẰNG TUẦN</div>
+        </div>
+        
+        <div id="questList" style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:10px;">
+            </div>
+        
+        <div style="padding:15px;">
+            <button class="btn-main" onclick="closeQuests()" style="width:100%; background:#333; color:#fff; border-color:#555;">QUAY LẠI</button>
+      </div>
+    </div>
+  </div>
   <script type="module">
     let isFirebaseLoaded = false; let isOfflineTriggered = false; let realTimeTracker = 0; let lastSystemTime = Date.now(); let isTimeValid = true;
     setInterval(() => {
@@ -289,7 +344,39 @@ skipBtn.onclick = () => {
     let tX = window.innerWidth / 2; let tY = window.innerHeight - 150;
     let gData = { username: "", coins: 0, stats: { atk:0, hp:0, luck:0, crit:0, mag:0 }, owned: ['w1', 'h1'], equip: { w:'w1', h:'h1' }, maxLvl: 1, maxScore: 0, hasWon: false, maxTime: 0, avatar: '' };
     let currentUsername = ""; let dbListener = null;
-    
+    // --- HỆ THỐNG THỜI GIAN BẢO MẬT ---
+let serverTimeOffset = 0; // Độ lệch giữa server và client
+let lastKnownOnlineTime = 0;
+
+// Gọi hàm này khi bắt đầu game hoặc khi có mạng lại
+async function syncServerTime() {
+    try {
+        // Lấy giờ chuẩn theo múi giờ Việt Nam (UTC+7)
+        const response = await fetch('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh');
+        const data = await response.json();
+        const realTime = new Date(data.datetime).getTime();
+        
+        // Tính độ lệch: Giờ thực tế - Giờ thiết bị
+        serverTimeOffset = realTime - Date.now();
+        lastKnownOnlineTime = realTime;
+        
+        // Lưu offset vào localStorage để dùng khi offline
+        localStorage.setItem('ng_time_offset', serverTimeOffset);
+    } catch (e) {
+        // Nếu offline, lấy lại offset đã lưu từ trước
+        serverTimeOffset = parseInt(localStorage.getItem('ng_time_offset')) || 0;
+    }
+}
+
+// Hàm thay thế cho Date.now() và new Date()
+function getSecureTime() {
+    return Date.now() + serverTimeOffset; 
+}
+
+function getSecureDate() {
+    return new Date(getSecureTime());
+}
+
     const uiCache = { hpBar: document.getElementById('hpBar'), xpBar: document.getElementById('xpBar'), hudScore: document.getElementById('hudScore'), hudLvl: document.getElementById('hudLvl'), hudCoin: document.getElementById('hudCoin'), bossHpBar: document.getElementById('bossHpBar'), ultBtn: document.getElementById('ultBtn'), ultPerc: document.getElementById('ultPerc') };
     
     class ObjectPool {
@@ -306,7 +393,7 @@ skipBtn.onclick = () => {
 
     let securitySeed = Math.floor(Math.random() * 999) + 100; let coinHash = 0; const syncHash = () => { coinHash = gData.coins ^ securitySeed; };
     const verifyIntegrity = () => { if ((gData.coins ^ securitySeed) !== coinHash) { alert("Phát hiện dữ liệu bất thường. Trận đấu sẽ khởi động lại."); location.reload(); return false; } return true; };
-    const secureAddCoins = (amt) => { if(verifyIntegrity()){ gData.coins += amt; syncHash(); save(); } };
+    const secureAddCoins = (amt) => { if(verifyIntegrity()){ gData.coins += amt; if(typeof trackQuest === 'function') trackQuest('gold', amt); syncHash(); save(); } };
     const secureDeductCoins = (amt) => { if(!verifyIntegrity()) return false; if(gData.coins >= amt) { gData.coins -= amt; syncHash(); save(); return true; } return false; };
      
     const SECRET_KEY = "NEON_GALAXY_ULTRA_SECRET_2026"; const SAVE_KEY = "neonGalaxySave_Secure_v4"; 
@@ -379,9 +466,64 @@ skipBtn.onclick = () => {
     };  
       
     const EQUIP_DB = {  
-        weapons: { w1: { n: "Blaster", d: "Cân bằng", cost: 0, type:'std', color:'#0ff' }, w2: { n: "Shotgun", d: "Bắn chùm", cost: 500, type:'spread', color:'#ff0' }, w3: { n: "Laser", d: "Xuyên thấu", cost: 1200, type:'laser', color:'#f0f' }, w4: { n: "Plasma", d: "Tự tìm mục tiêu", cost: 2500, type:'homing', color:'#0f0' }, w5: { n: "Gatling", d: "Bắn siêu tốc", cost: 5000, type:'gatling', color:'#ff9900' }, w6: { n: "Supernova", d: "Đạn 5 tia", cost: 12000, type:'nova', color:'#ff0055' }, w7: { n: "Dark Matter", d: "Quả cầu hủy diệt", cost: 30000, type:'dark', color:'#6600ff' }, w8: { n: "Omega Beam", d: "Tia phán xét", cost: 80000, type:'omega', color:'#ffffff' } },  
-        hulls: { h1: { n: "Standard", d: "Máu 100", cost: 0, hp:0, spd:0 }, h2: { n: "Tanker", d: "Máu +200, Chậm", cost: 800, hp:200, spd:-0.03 }, h3: { n: "Racer", d: "Máu -20, Nhanh", cost: 1000, hp:-20, spd:0.06 }, h4: { n: "Titan", d: "Máu +500", cost: 3000, hp:500, spd:-0.05 }, h5: { n: "Phantom", d: "Máu -50, Tốc độ", cost: 6000, hp:-50, spd:0.09 }, h6: { n: "Juggernaut", d: "Máu +1000, Rùa", cost: 15000, hp:1000, spd:-0.07 }, h7: { n: "Eclipse", d: "Máu +300", cost: 35000, hp:300, spd:0.04 }, h8: { n: "Genesis", d: "Máu +1500", cost: 100000, hp:1500, spd:0.08 } }  
-    };  
+    weapons: { 
+        w1: { n: "Blaster", d: "Cơ bản", cost: 0, type:'std', color:'#0ff', fr: 15 }, 
+        w2: { n: "Shotgun", d: "Bắn chùm", cost: 500, type:'spread', color:'#ff0', fr: 35 }, 
+        w3: { n: "Laser", d: "Xuyên thấu", cost: 1200, type:'laser', color:'#f0f', fr: 45 }, 
+        w4: { n: "Plasma", d: "Tìm mục tiêu", cost: 2500, type:'homing', color:'#0f0', fr: 50 }, 
+        w5: { n: "Gatling", d: "Siêu tốc", cost: 5000, type:'gatling', color:'#ff9900', fr: 6 }, 
+        w6: { n: "Supernova", d: "Đạn 5 tia", cost: 12000, type:'nova', color:'#ff0055', fr: 35 }, 
+        w7: { n: "Dark Matter", d: "Cầu hủy diệt", cost: 30000, type:'dark', color:'#6600ff', fr: 60 }, 
+        w8: { n: "Omega Beam", d: "Tia phán xét", cost: 80000, type:'omega', color:'#ffffff', fr: 20 },
+        // --- TIER MỚI (CÀY CUỐC) ---
+        w9: { n: "Pulse Rifle", d: "Liên thanh đạn to", cost: 150000, type:'std', color:'#00ffcc', fr: 10 },
+        w10:{ n: "Hellfire", d: "Chùm lửa rộng", cost: 300000, type:'spread', color:'#ff3300', fr: 25 },
+        w11:{ n: "Death Ray", d: "Laser sạc nhanh", cost: 500000, type:'laser', color:'#ff0000', fr: 30 },
+        w12:{ n: "Swarm", d: "Bầy ong Plasma", cost: 850000, type:'homing', color:'#33cc33', fr: 35 },
+        w13:{ n: "Vulcan", d: "Gatling tối thượng", cost: 1500000, type:'gatling', color:'#ffcc00', fr: 4 },
+        w14:{ n: "Hypernova", d: "Đạn 5 tia lướt", cost: 2800000, type:'nova', color:'#ff00aa', fr: 25 },
+        w15:{ n: "Void Sphere", d: "Hố đen kép", cost: 5000000, type:'dark', color:'#4400cc', fr: 45 },
+        w16:{ n: "Genesis Ray", d: "Ánh sáng chói", cost: 8000000, type:'omega', color:'#ccffff', fr: 15 },
+        w17:{ n: "Starfall", d: "Mưa đạn chùm", cost: 12000000, type:'spread', color:'#ffff99', fr: 18 },
+        w18:{ n: "Eclipse", d: "Laser hủy diệt", cost: 18000000, type:'laser', color:'#1a1a1a', fr: 20 },
+        w19:{ n: "Neutron", d: "Tự động săn lùng", cost: 25000000, type:'homing', color:'#00ff66', fr: 20 },
+        w20:{ n: "Annihilator", d: "Quét sạch bản đồ", cost: 35000000, type:'gatling', color:'#ff0033', fr: 3 },
+        w21:{ n: "Cosmic Storm", d: "Siêu bão Nova", cost: 50000000, type:'nova', color:'#ff33cc', fr: 15 },
+        w22:{ n: "Singularity", d: "Hố đen nguyên thủy", cost: 75000000, type:'dark', color:'#110033', fr: 30 },
+        w23:{ n: "God's Wrath", d: "Phán quyết", cost: 120000000, type:'omega', color:'#ffee00', fr: 10 },
+        w24:{ n: "Reality Tear", d: "Rách không gian", cost: 200000000, type:'spread', color:'#ff00ff', fr: 10 },
+        w25:{ n: "THE OVERDRIVE", d: "VŨ KHÍ TỐI THƯỢNG", cost: 500000000, type:'omega', color:'#ffffff', fr: 5 }
+    },  
+    hulls: { 
+        h1: { n: "Standard", d: "Máu 100", cost: 0, hp:0, spd:0 }, 
+        h2: { n: "Tanker", d: "Máu +200, Chậm", cost: 800, hp:200, spd:-0.03 }, 
+        h3: { n: "Racer", d: "Máu -20, Nhanh", cost: 1000, hp:-20, spd:0.06 }, 
+        h4: { n: "Titan", d: "Máu +500", cost: 3000, hp:500, spd:-0.05 }, 
+        h5: { n: "Phantom", d: "Máu -50, Tốc độ", cost: 6000, hp:-50, spd:0.09 }, 
+        h6: { n: "Juggernaut", d: "Máu +1000, Rùa", cost: 15000, hp:1000, spd:-0.07 }, 
+        h7: { n: "Eclipse", d: "Máu +300", cost: 35000, hp:300, spd:0.04 }, 
+        h8: { n: "Genesis", d: "Máu +1500", cost: 80000, hp:1500, spd:0.08 },
+        // --- TIER MỚI (CÀY CUỐC) ---
+        h9: { n: "Gladiator", d: "Máu +2000", cost: 150000, hp:2000, spd:-0.02 },
+        h10:{ n: "Valkyrie", d: "Máu +1200, Nhanh", cost: 300000, hp:1200, spd:0.05 },
+        h11:{ n: "Colossus", d: "Máu +3500", cost: 550000, hp:3500, spd:-0.08 },
+        h12:{ n: "Wraith", d: "Máu +800, Siêu Nhanh", cost: 900000, hp:800, spd:0.12 },
+        h13:{ n: "Behemoth", d: "Máu +6000", cost: 1600000, hp:6000, spd:-0.06 },
+        h14:{ n: "Interceptor", d: "Máu +2500, Nhanh", cost: 3000000, hp:2500, spd:0.06 },
+        h15:{ n: "Dreadnought", d: "Máu +10000", cost: 5500000, hp:10000, spd:-0.1 },
+        h16:{ n: "Spectre", d: "Máu +4000, Tốc độ", cost: 9000000, hp:4000, spd:0.08 },
+        h17:{ n: "Leviathan", d: "Máu +18000", cost: 15000000, hp:18000, spd:-0.05 },
+        h18:{ n: "Comet", d: "Máu +6000, Tốc ánh sáng", cost: 24000000, hp:6000, spd:0.15 },
+        h19:{ n: "Aegis", d: "Máu +30000", cost: 40000000, hp:30000, spd:-0.02 },
+        h20:{ n: "Pulsar", d: "Máu +12000, Cân bằng", cost: 65000000, hp:12000, spd:0.07 },
+        h21:{ n: "Galactus", d: "Máu +50000", cost: 100000000, hp:50000, spd:-0.05 },
+        h22:{ n: "Quasar", d: "Máu +25000, Nhanh", cost: 160000000, hp:25000, spd:0.09 },
+        h23:{ n: "Supermassive", d: "Máu +80000", cost: 250000000, hp:80000, spd:-0.08 },
+        h24:{ n: "Event Horizon", d: "Máu +40000, Tốc độ", cost: 380000000, hp:40000, spd:0.1 },
+        h25:{ n: "IMMORTAL", d: "VỎ TÀU BẤT TỬ", cost: 600000000, hp:150000, spd:0.12 }
+    }  
+};
+
     const UPGRADES = { atk: { n: "Damage", cost: 100, max: 20, desc: "+10% ST" }, hp: { n: "Armor", cost: 100, max: 20, desc: "+50 Máu" }, luck: { n: "Luck", cost: 200, max: 10, desc: "Tỷ lệ đồ xịn" }, crit: { n: "Critical", cost: 150, max: 10, desc: "+5% Chí mạng" }, mag: { n: "Magnet", cost: 100, max: 10, desc: "Tầm hút đồ" } };  
     
     function save() { window.AuthSys.saveSync(); }  
@@ -400,13 +542,14 @@ skipBtn.onclick = () => {
     function addText(val, x, y, isCrit = false, customColor = null, big = false) { let t = tPool.get(); t.text = val; t.x = x + (Math.random()*20-10); t.y = y; t.life = 1.0; t.color = customColor || (isCrit ? '#ffcc00' : '#fff'); t.size = big ? 24 : (isCrit ? 20 : 14); t.vy = isCrit ? -2 : -1; texts.push(t); }  
       
     function startGame() {  
+        syncServerTime(); 
         enterFullScreen(); 
         if (AudioSys.enabled) { AudioSys.init(); if (AudioSys.ctx && AudioSys.ctx.state === 'suspended') AudioSys.ctx.resume(); AudioSys.playBGM(); }
           
         state = 'PLAYING'; document.querySelectorAll('.overlay').forEach(e => e.classList.add('hidden')); document.getElementById('uiLayer').classList.remove('hidden');  
         const hull = EQUIP_DB.hulls[gData.equip.h]; const upHP = (gData.stats.hp || 0) * 50;  
           
-        player = { x: W/2, y: H-150, r: 15, hp: 100 + hull.hp + upHP, maxHp: 100 + hull.hp + upHP, atk: 10 * (1 + (gData.stats.atk||0) * 0.1), spd: 0.12 + hull.spd, crit: (gData.stats.crit || 0) * 0.05, magRadius: 100 + (gData.stats.mag || 0) * 40, wep: gData.equip.w, fr: 0, nextFr: 12, mult: 1, invuln: 0 };  
+        player = { x: W/2, y: H-150, r: 15, hp: 100 + hull.hp + upHP, maxHp: 100 + hull.hp + upHP, atk: 10 * (1 + (gData.stats.atk||0) * 0.1), spd: 0.12 + hull.spd, crit: (gData.stats.crit || 0) * 0.05, magRadius: 100 + (gData.stats.mag || 0) * 40, wep: gData.equip.w, fr: 0, nextFr: EQUIP_DB.weapons[gData.equip.w].fr || 12, mult: 1, invuln: 0 };  
         const firerates = {w2:35, w3:45, w4:50, w5:5, w6:35, w7:60, w8:15}; if(firerates[player.wep]) player.nextFr = firerates[player.wep];
       
         enemies.forEach(e => ePool.release(e)); enemies = []; bullets.forEach(b => bPool.release(b)); bullets = []; particles.forEach(p => pPool.release(p)); particles = []; texts.forEach(t => tPool.release(t)); texts = []; items = []; trails = [];  
@@ -451,7 +594,7 @@ skipBtn.onclick = () => {
     function loop() {  
         if(isEndlessMode && !game.boss) {
             game.surviveFrames++;
-            if(game.surviveFrames % 3600 === 0) { game.lvl++; if(game.lvl % 5 === 0) spawnBoss(); AudioSys.sfxLevel(); showLvlUp(); }
+            if(game.surviveFrames % 3600 === 0) { game.lvl++; if(game.lvl % 5 === 0) trackQuest('games', 1); spawnBoss(); AudioSys.sfxLevel(); showLvlUp(); }
         }
         if(state !== 'PLAYING') return; requestAnimationFrame(loop); game.frame++;  
         ctx.save();  
@@ -603,11 +746,13 @@ skipBtn.onclick = () => {
                         game.ult = Math.min(100, game.ult + (e.type==='tank'?8:4)); AudioSys.sfxExplode(); doShake(e.type==='tank'?10:4); spawnParticles(e.x, e.y, e.color, e.type==='tank'?35:20);
     
                         if(e.type === 'boss') { 
-                            game.boss = false; uiCache.bossHpBar.parentElement.parentElement.style.display='none'; game.score += 5000; game.exp += 50;
+                            trackQuest('boss', 1); // Thêm ở đây khi Boss thực sự chết
+                            game.boss = false; uiCache.bossHpBar.parentElement.parentElement.style.display='none'; 
                             rewardAmount = Math.floor(500 * coinMultiplier); secureAddCoins(rewardAmount);
                             addText("BOSS BONUS +" + rewardAmount, e.x, e.y - 40, true, '#ffd700', true);
                             if (e.name === "Neural Overlord") gData.hasWon = true; save();
                         } else { 
+                            trackQuest('kills', 1); // Thêm ở đây khi quái thường chết
                             game.score += (e.type==='tank'?400:150); rewardAmount = Math.floor(20 * coinMultiplier);
                             let rngDrop = Math.random();
                             if(rngDrop < 0.015) { items.push({x:e.x, y:e.y, t: 'b'}); } else if(rngDrop < 0.035) { items.push({x:e.x, y:e.y, t: 's'}); } else if(rngDrop < (player.hp < player.maxHp * 0.35 ? 0.3 : 0.05)) { items.push({x:e.x, y:e.y, t: 'h'}); } else if(rngDrop > (0.9 - (gData.stats.luck||0)*0.05)) { if (isEndlessMode) items.push({x: e.x, y: e.y, t: 'c', val: rewardAmount}); else items.push({x:e.x, y:e.y, t: 'x'}); } else { items.push({x: e.x, y: e.y, t: 'c', val: rewardAmount}); }
@@ -643,7 +788,7 @@ skipBtn.onclick = () => {
         } ctx.textAlign = "left"; 
     }  
     
-    function checkLvl() { if(game.exp >= game.nextExp) { state = 'PAUSED'; game.exp = 0; game.nextExp *= 1.4; game.lvl++; if(game.lvl % 5 === 0) spawnBoss(); AudioSys.sfxLevel(); showLvlUp(); } }  
+    function checkLvl() { if(game.exp >= game.nextExp) { state = 'PAUSED'; game.exp = 0; game.nextExp *= 1.4; game.lvl++; if(game.lvl % 5 === 0) trackQuest('games', 1); spawnBoss(); AudioSys.sfxLevel(); showLvlUp(); } }  
     function showLvlUp() { const screen = document.getElementById('lvlScreen'), con = document.getElementById('skillContainer'); screen.classList.remove('hidden'); con.innerHTML = ''; const skills = [ {n:'TĂNG HỎA LỰC', d:'+20% Sát thương', f:()=>{player.atk*=1.2}}, {n:'SÚNG KÉP', d:'Tăng lượng đạn', f:()=>{player.mult++}}, {n:'SỬA CHỮA', d:'Hồi 50% Máu', f:()=>{player.hp = Math.min(player.maxHp, player.hp+(player.maxHp*0.5))}}, {n:'TĂNG TỐC', d:'Tốc độ x1.2', f:()=>{player.spd*=1.2}}, {n:'NẠP SIÊU NHANH', d:'Tốc độ bắn x1.6', f:()=>{ player.nextFr = Math.max(3, Math.floor(player.nextFr * 0.6)); }} ]; skills.sort(()=>Math.random()-0.5).slice(0,3).forEach(s => { let btn = document.createElement('button'); btn.className = 'btn-main'; btn.style = 'width:130px; height:150px; font-size:12px; border:2px solid var(--p); display:flex; flex-direction:column; justify-content:center; align-items:center; box-shadow: 0 0 15px rgba(0,255,255,0.2) inset;'; btn.innerHTML = `<b style="font-size:16px;color:var(--y);margin-bottom:15px;text-align:center;">${s.n}</b><span style="color:#aaa;text-align:center;">${s.d}</span>`; btn.onclick = () => { s.f(); screen.classList.add('hidden'); state = 'PLAYING'; loop(); }; con.appendChild(btn); }); }  
     
     function tryUlt() { 
@@ -653,8 +798,9 @@ skipBtn.onclick = () => {
                 let e = enemies[i];
                 if (e.type === 'boss') {
                     let ultDmg = player.atk * 10; e.hp -= ultDmg; addText("ULTIMATE TẬP KÍCH!", e.x, e.y - 40, true, '#ff00ff', true); addText("-" + Math.floor(ultDmg), e.x, e.y, true, '#ffaa00'); spawnParticles(e.x, e.y, e.color, 60, 2.5);
-                    if (e.hp <= 0.2) { game.boss = false; uiCache.bossHpBar.parentElement.parentElement.style.display = 'none'; game.score += 5000; game.exp += 50; let coinMultiplier = isHardcoreMode ? 1.5 : 1; let rewardAmount = Math.floor(500 * coinMultiplier); secureAddCoins(rewardAmount); addText("BOSS BONUS +" + rewardAmount, e.x, e.y - 40, true, '#ffd700', true); if (e.name === "Neural Overlord") gData.hasWon = true; save(); AudioSys.sfxExplode(); doShake(20); ePool.release(e); enemies.splice(i, 1); }
-                } else {
+                    if (e.hp <= 0.2) { trackQuest('boss', 1); game.boss = false; uiCache.bossHpBar.parentElement.parentElement.style.display = 'none'; game.score += 5000; game.exp += 50; let coinMultiplier = isHardcoreMode ? 1.5 : 1; let rewardAmount = Math.floor(500 * coinMultiplier); secureAddCoins(rewardAmount); addText("BOSS BONUS +" + rewardAmount, e.x, e.y - 40, true, '#ffd700', true); if (e.name === "Neural Overlord") gData.hasWon = true; save(); AudioSys.sfxExplode(); doShake(20); ePool.release(e); enemies.splice(i, 1); }                    
+                                } else {
+                    trackQuest('kills', 1); // Quái thường chết bằng Ulti
                     spawnParticles(e.x, e.y, e.color, 40, 2); items.push({x: e.x, y: e.y, t: 'c'}); game.score += 50; ePool.release(e); enemies.splice(i, 1);
                 }
             }
@@ -679,6 +825,305 @@ skipBtn.onclick = () => {
     function openLeaderboard() { document.getElementById('menuScreen').classList.add('hidden'); document.getElementById('lbScreen').classList.remove('hidden'); if (gData.hasWon) document.getElementById('lbTabEndless').style.display = 'block'; window.AuthSys.showLB('maxLvl', document.querySelector('.lb-tab')); }
     function closeLeaderboard() { document.getElementById('lbScreen').classList.add('hidden'); document.getElementById('menuScreen').classList.remove('hidden'); }
     function openEquip() { document.getElementById('menuScreen').classList.add('hidden'); document.getElementById('equipScreen').classList.remove('hidden'); document.getElementById('eqCoin').innerText = gData.coins; renderEquipGrid('weaponGrid', EQUIP_DB.weapons, 'w'); renderEquipGrid('hullGrid', EQUIP_DB.hulls, 'h'); }  
+     // --- LOGIC GACHA ---
+let gachaInterval = null;
+
+function openGacha() {
+    initQuestData();
+    document.getElementById('menuScreen').classList.add('hidden');
+    document.getElementById('gachaScreen').classList.remove('hidden');
+    document.getElementById('gachaResult').innerHTML = "Hãy dùng Phiếu để quét trạm không gian nhận Vũ khí, Vỏ Tàu hoặc Vàng!";
+    updateGachaUI();
+    
+    // Timer đếm ngược 24h
+    gachaInterval = setInterval(updateGachaUI, 1000);
+}
+
+function closeGacha() {
+    clearInterval(gachaInterval);
+    document.getElementById('gachaScreen').classList.add('hidden');
+    document.getElementById('menuScreen').classList.remove('hidden');
+}
+
+function updateGachaUI() {
+    if(!gData.quests) return;
+    document.getElementById('gachaTicketCount').innerText = gData.tickets;
+    
+    let now = getSecureTime(); // ĐÃ ĐỔI
+    let timeDiff = now - (gData.lastFreeSpin || 0);
+    let ms24h = 86400000;
+    // ... giữ nguyên phần tính h, m, s bên dưới ...
+    
+    let btnFree = document.getElementById('btnFreeSpin');
+    let badge = document.getElementById('gachaTimerBadge');
+    
+    if (timeDiff >= ms24h || gData.lastFreeSpin === 0) {
+        btnFree.disabled = false;
+        btnFree.innerText = "QUAY MIỄN PHÍ";
+        btnFree.style.filter = "none";
+        badge.innerText = "SẴN SÀNG";
+        badge.style.color = "#0f0";
+        badge.style.borderColor = "#0f0";
+    } else {
+        btnFree.disabled = true;
+        btnFree.style.filter = "grayscale(1)";
+        let remain = ms24h - timeDiff;
+        let h = Math.floor(remain / 3600000).toString().padStart(2, '0');
+        let m = Math.floor((remain % 3600000) / 60000).toString().padStart(2, '0');
+        let s = Math.floor((remain % 60000) / 1000).toString().padStart(2, '0');
+        btnFree.innerText = `CHỜ HỒI NĂNG LƯỢNG (${h}:${m}:${s})`;
+        badge.innerText = `${h}:${m}`;
+        badge.style.color = "var(--p)";
+        badge.style.borderColor = "var(--p)";
+    }
+}
+
+function spinGacha(isFree) {
+    let now = getSecureTime(); // Lấy giờ chuẩn để kiểm tra
+
+    if (isFree) {
+        if (now - (gData.lastFreeSpin || 0) < 86400000 && gData.lastFreeSpin !== 0) return;
+        gData.lastFreeSpin = now; // Lưu giờ chuẩn vào data
+    } else {
+        if (gData.tickets <= 0) return alert("Bạn không đủ Phiếu Gacha!");
+        gData.tickets--;
+    }
+    // ... giữ nguyên thuật toán quay số bên dưới ...
+    
+    // Tỷ lệ Gacha: 60% Vàng, 30% Đồ thường (Tier 2-4), 10% Đồ xịn (Tier 5-7)
+    let roll = Math.random() * 100;
+    let resHtml = "";
+    
+    if (roll < 60) {
+        let amt = Math.floor(Math.random() * 9000) + 1000;
+        secureAddCoins(amt);
+        resHtml = `<span style="color:var(--gold); font-size:20px;">+${amt.toLocaleString()} 💰 VÀNG</span>`;
+        AudioSys.sfxCoin();
+    } else {
+        let isRare = roll >= 90;
+        let minTier = isRare ? 5 : 2;
+        let maxTier = isRare ? 7 : 4;
+        let prefix = Math.random() > 0.5 ? 'w' : 'h';
+        let itemIndex = Math.floor(Math.random() * (maxTier - minTier + 1)) + minTier;
+        let itemId = prefix + itemIndex;
+        let item = EQUIP_DB[prefix === 'w' ? 'weapons' : 'hulls'][itemId];
+        
+        if (gData.owned.includes(itemId)) {
+            let comp = Math.floor(item.cost * 0.3) || 500;
+            secureAddCoins(comp);
+            resHtml = `<span style="color:#aaa;">Đã có [${item.n}]</span><br><span style="color:var(--gold)">ĐỀN BÙ: +${comp} 💰</span>`;
+            AudioSys.sfxCoin();
+        } else {
+            gData.owned.push(itemId);
+            resHtml = `<span style="color:${isRare ? '#f0f' : '#0ff'}; font-size:22px;">🎉 NHẬN ĐƯỢC: ${item.n} 🎉</span>`;
+            AudioSys.sfxLevel();
+        }
+    }
+    
+    document.getElementById('gachaResult').innerHTML = resHtml;
+    updateGachaUI();
+    save();
+}
+// --- HỆ THỐNG NHIỆM VỤ RANDOM (MỚI) ---
+const QUEST_TEMPLATES = {
+    daily: [
+        { desc: 'Tham chiến {amt} trận', type: 'games', amts: [3, 5, 7], rewType: 'gold', rewVals: [500, 1000, 1500] },
+        { desc: 'Kiếm {amt} Vàng', type: 'gold', amts: [2000, 5000, 8000], rewType: 'ticket', rewVals: [1, 1, 2] },
+        { desc: 'Tiêu diệt {amt} kẻ địch', type: 'kills', amts: [50, 100, 200], rewType: 'gold', rewVals: [800, 1500, 2500] },
+        { desc: 'Hạ gục {amt} Boss', type: 'boss', amts: [1, 2, 3], rewType: 'equip', min: 2, max: 4 },
+        { desc: 'Tích lũy {amt} Vàng', type: 'gold', amts: [3000, 4000], rewType: 'gold', rewVals: [1000, 1200] },
+        { desc: 'Cày {amt} ván game', type: 'games', amts: [4, 6], rewType: 'ticket', rewVals: [1, 2] },
+        { desc: 'Phá hủy {amt} tàu địch', type: 'kills', amts: [80, 150], rewType: 'ticket', rewVals: [1, 2] }
+    ],
+    weekly: [
+        { desc: 'Chiến đấu {amt} trận', type: 'games', amts: [20, 30, 50], rewType: 'gold', rewVals: [10000, 15000, 25000] },
+        { desc: 'Tiêu diệt {amt} kẻ địch', type: 'kills', amts: [1000, 1500, 3000], rewType: 'ticket', rewVals: [3, 4, 6] },
+        { desc: 'Tiêu diệt {amt} Boss', type: 'boss', amts: [10, 15, 25], rewType: 'equip', min: 4, max: 6 },
+        { desc: 'Kiếm {amt} Vàng', type: 'gold', amts: [50000, 100000, 150000], rewType: 'equip', min: 5, max: 7 },
+        { desc: 'Quét sạch {amt} quân địch', type: 'kills', amts: [2000, 2500], rewType: 'equip', min: 5, max: 6 },
+        { desc: 'Thu thập {amt} Vàng', type: 'gold', amts: [80000, 120000], rewType: 'ticket', rewVals: [4, 6] }
+    ]
+};
+
+function generateQuests(type, count) {
+    let templates = [...QUEST_TEMPLATES[type]].sort(() => 0.5 - Math.random());
+    let selected = templates.slice(0, count);
+    
+    return selected.map((t, index) => {
+        let diffIndex = Math.floor(Math.random() * t.amts.length); 
+        let amt = t.amts[diffIndex];
+        
+        let rew = {};
+        if (t.rewType === 'equip') { rew = { t: 'equip', min: t.min, max: t.max }; } 
+        else { rew = { t: t.rewType, val: t.rewVals[diffIndex] }; }
+
+        return {
+            id: `${type[0]}${Date.now()}${index}`,
+            desc: t.desc.replace('{amt}', amt),
+            req: { type: t.type, amt: amt },
+            rew: rew
+        };
+    });
+}
+
+function getWeekNumber(d) {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+}
+
+function initQuestData() {
+    if (typeof gData.tickets === 'undefined') gData.tickets = 0;
+    if (typeof gData.lastFreeSpin === 'undefined') gData.lastFreeSpin = 0;
+    
+    let secureNow = getSecureDate();
+    let today = secureNow.getFullYear() + "-" + (secureNow.getMonth() + 1) + "-" + secureNow.getDate();
+    
+    if (!gData.quests) {
+        gData.quests = { stats: { kills:0, boss:0, games:0, gold:0 }, dClaim: [], wClaim: [], lastD: today, lastW: getWeekNumber(secureNow), activeDaily: [], activeWeekly: [] };
+    }
+    if (!gData.quests.activeDaily) gData.quests.activeDaily = [];
+    if (!gData.quests.activeWeekly) gData.quests.activeWeekly = [];
+}
+
+function trackQuest(type, amount) {
+    if(!gData.quests) initQuestData();
+    if(gData.quests.stats[type] !== undefined) gData.quests.stats[type] += amount;
+}
+
+let currentQuestTab = 'daily';
+
+function checkQuestReset() {
+    initQuestData();
+    let secureNow = getSecureDate();
+    let today = secureNow.getFullYear() + "-" + (secureNow.getMonth() + 1) + "-" + secureNow.getDate();
+    let thisWeek = getWeekNumber(secureNow);
+    let isChanged = false;
+
+    if (gData.quests.activeDaily.length === 0) { 
+        gData.quests.activeDaily = generateQuests('daily', 4); 
+        isChanged = true; 
+    }
+    if (gData.quests.activeWeekly.length === 0) { 
+        gData.quests.activeWeekly = generateQuests('weekly', 4); 
+        isChanged = true; 
+    }
+
+    if (gData.quests.lastD !== today) {
+        gData.quests.dClaim = []; 
+        gData.quests.lastD = today;
+        gData.quests.stats.games = 0; 
+        gData.quests.stats.kills = 0; 
+        gData.quests.stats.boss = 0; 
+        gData.quests.stats.gold = 0;
+        gData.quests.activeDaily = generateQuests('daily', 4);
+        isChanged = true;
+    }
+    
+    if (gData.quests.lastW !== thisWeek) {
+        gData.quests.wClaim = []; 
+        gData.quests.lastW = thisWeek;
+        gData.quests.activeWeekly = generateQuests('weekly', 4);
+        isChanged = true;
+    }
+    if(isChanged) save();
+}
+
+function openQuests() {
+    checkQuestReset();
+    document.getElementById('menuScreen').classList.add('hidden');
+    document.getElementById('questScreen').classList.remove('hidden');
+    renderQuests();
+}
+
+function closeQuests() {
+    document.getElementById('questScreen').classList.add('hidden');
+    document.getElementById('menuScreen').classList.remove('hidden');
+}
+
+function switchQuestTab(tab) {
+    currentQuestTab = tab;
+    document.getElementById('tabDaily').classList.toggle('active', tab === 'daily');
+    document.getElementById('tabWeekly').classList.toggle('active', tab === 'weekly');
+    renderQuests();
+}
+
+function renderQuests() {
+    let listEl = document.getElementById('questList');
+    listEl.innerHTML = "";
+    
+    let activeQuests = currentQuestTab === 'daily' ? gData.quests.activeDaily : gData.quests.activeWeekly;
+    let claimedArr = currentQuestTab === 'daily' ? gData.quests.dClaim : gData.quests.wClaim;
+    let stats = gData.quests.stats;
+    
+    activeQuests.forEach(q => {
+        let isClaimed = claimedArr.includes(q.id);
+        let currentProg = stats[q.req.type] || 0;
+        let isDone = currentProg >= q.req.amt;
+        
+        let rewText = "";
+        if (q.rew.t === 'gold') rewText = `${q.rew.val.toLocaleString()} 💰`;
+        else if (q.rew.t === 'ticket') rewText = `${q.rew.val} 🎫 Phiếu`;
+        else if (q.rew.t === 'equip') rewText = `Trang bị (Tier ${q.rew.min}-${q.rew.max})`;
+        
+        let bg = isClaimed ? "rgba(0,255,0,0.1)" : "rgba(255,255,255,0.05)";
+        let border = isClaimed ? "#0f0" : (isDone ? "var(--gold)" : "#555");
+        
+        let html = `
+            <div style="background:${bg}; border:1px solid ${border}; padding:10px; border-radius:5px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-weight:bold; color:${isDone && !isClaimed ? 'var(--gold)' : '#fff'}; font-size:14px;">${q.desc}</div>
+                    <div style="font-size:11px; color:#aaa; margin-top:5px;">Tiến độ: ${Math.min(currentProg, q.req.amt)} / ${q.req.amt}</div>
+                    <div style="font-size:12px; color:var(--p); margin-top:2px;">Quà: ${rewText}</div>
+                </div>
+                <div>
+                    ${isClaimed ? 
+                        `<button class="btn-main btn-small" disabled style="filter:grayscale(1);">ĐÃ NHẬN</button>` : 
+                        `<button class="btn-main btn-small" ${!isDone ? 'disabled style="filter:grayscale(1);"' : `onclick="claimQuest('${q.id}', '${currentQuestTab}')"`} style="background:var(--gold); color:#000;">NHẬN QUÀ</button>`
+                    }
+                </div>
+            </div>
+        `;
+        listEl.innerHTML += html;
+    });
+}
+
+function claimQuest(qId, tab) {
+    let activeQuests = tab === 'daily' ? gData.quests.activeDaily : gData.quests.activeWeekly;
+    let q = activeQuests.find(x => x.id === qId);
+    if (!q) return;
+    
+    if (q.rew.t === 'gold') {
+        secureAddCoins(q.rew.val);
+        AudioSys.sfxCoin();
+    } else if (q.rew.t === 'ticket') {
+        gData.tickets += q.rew.val;
+        AudioSys.sfxLevel();
+    } else if (q.rew.t === 'equip') {
+        let prefix = Math.random() > 0.5 ? 'w' : 'h';
+        let itemIndex = Math.floor(Math.random() * (q.rew.max - q.rew.min + 1)) + q.rew.min;
+        let itemId = prefix + itemIndex;
+        
+        if (!gData.owned.includes(itemId)) {
+            gData.owned.push(itemId);
+            alert(`Chúc mừng! Bạn nhận được Trang bị: ${EQUIP_DB[prefix === 'w' ? 'weapons' : 'hulls'][itemId].n}`);
+        } else {
+            let comp = 1000 * q.rew.min;
+            secureAddCoins(comp);
+            alert(`Bạn đã có trang bị này, được đền bù ${comp} Vàng!`);
+        }
+        AudioSys.sfxLevel();
+    }
+    
+    if (tab === 'daily') gData.quests.dClaim.push(qId);
+    else gData.quests.wClaim.push(qId);
+    
+    save();
+    renderQuests(); 
+}
+// --- KẾT THÚC HỆ THỐNG NHIỆM VỤ ---
+
     function renderEquipGrid(id, db, type) { const el = document.getElementById(id); el.innerHTML = ''; for(let k in db) { let item = db[k], owned = gData.owned.includes(k), equipped = gData.equip[type] === k; let div = document.createElement('div'); div.className = `equip-card ${equipped?'active':''} ${owned?'owned':''}`; div.onclick = () => handleEquipClick(k, type, db[k].cost); div.innerHTML = `<span class="equip-icon" style="color:${item.color||'#fff'}">${type=='w'?'⚔️':'🛡️'}</span><span class="equip-name">${item.n}</span><span class="equip-stat">${item.d}</span>${equipped ? '<b style="color:var(--p);font-size:11px">ĐANG DÙNG</b>' : (owned ? '<span style="color:#ff0;font-size:10px">SỞ HỮU</span>' : `<span class="cost-badge">${item.cost} 💰</span>`)}`; el.appendChild(div); } }  
     function handleEquipClick(id, type, cost) { if(gData.owned.includes(id)) { gData.equip[type] = id; save(); openEquip(); AudioSys.playTone(600, 'sine', 0.1); } else { if(secureDeductCoins(cost)) { gData.owned.push(id); gData.equip[type] = id; save(); openEquip(); AudioSys.sfxCoin(); } else { alert("Không đủ vàng hoặc lỗi bảo mật!"); } } }  
     function openShop() { document.getElementById('menuScreen').classList.add('hidden'); document.getElementById('shopScreen').classList.remove('hidden'); document.getElementById('shopCoin').innerText = gData.coins; const g = document.getElementById('shopGrid'); g.innerHTML = ''; for(let k in UPGRADES) { let u = UPGRADES[k], lv = gData.stats[k] || 0, cost = Math.floor(u.cost * Math.pow(1.5, lv)), isMax = lv >= u.max; g.innerHTML += `<div class="equip-card"><span class="equip-name">${u.n} <span style="color:var(--y)">(Lv ${lv})</span></span><span class="equip-stat">${u.desc}</span><button class="btn-main" style="padding:8px; font-size:11px; width:100%; margin:0;" onclick="buyUpgrade('${k}', ${cost}, ${u.max})">${isMax ? 'MAX' : cost + ' 💰'}</button></div>`; } }  
@@ -688,8 +1133,29 @@ skipBtn.onclick = () => {
     function toggleAudio() { AudioSys.toggle(); }  
     
     cvs.addEventListener('touchstart', e=>{tX=e.touches[0].clientX; tY=e.touches[0].clientY}); cvs.addEventListener('touchmove', e=>{e.preventDefault(); tX=e.touches[0].clientX; tY=e.touches[0].clientY}, {passive:false}); cvs.addEventListener('mousemove', e=>{tX=e.clientX; tY=e.clientY});  
-    
+    setInterval(() => {
+    let badge = document.getElementById('gachaTimerBadge');
+    if(!badge || !gData.quests) return;
+    let timeDiff = Date.now() - gData.lastFreeSpin;
+    if (timeDiff >= 86400000 || gData.lastFreeSpin === 0) {
+        badge.innerText = "SẴN SÀNG"; badge.style.color = "#0f0"; badge.style.borderColor = "#0f0";
+    } else {
+        let remain = 86400000 - timeDiff;
+        let h = Math.floor(remain / 3600000).toString().padStart(2, '0');
+        let m = Math.floor((remain % 3600000) / 60000).toString().padStart(2, '0');
+        badge.innerText = `${h}:${m}`; badge.style.color = "var(--p)"; badge.style.borderColor = "var(--p)";
+    }
+}, 60000); // Check mỗi phút 1 lần ngoài menu cho đỡ tốn tài nguyên
+
     window.startGame = startGame; window.togglePause = togglePause; window.buyUpgrade = buyUpgrade; 
+        // Gắn các hàm Gacha và Quest vào global window
+    window.openGacha = openGacha; 
+    window.closeGacha = closeGacha; 
+    window.spinGacha = spinGacha;
+    window.openQuests = openQuests; 
+    window.closeQuests = closeQuests; 
+    window.switchQuestTab = switchQuestTab; 
+    window.claimQuest = claimQuest;
     window.openProfile = openProfile; window.closeProfile = closeProfile; window.toggleAvatarSelect = toggleAvatarSelect; window.setAvatar = setAvatar; window.openChangePass = openChangePass; window.closeChangePass = closeChangePass; window.executeChangePass = executeChangePass; window.openEquip = openEquip; window.closeEquip = closeEquip; window.openShop = openShop; window.closeShop = closeShop; window.openLeaderboard = openLeaderboard; window.closeLeaderboard = closeLeaderboard; window.toggleAudio = toggleAudio; window.showConfirmQuit = showConfirmQuit; window.executeQuit = executeQuit; window.tryUlt = tryUlt;
     
     window.addEventListener('online', async () => { const userLabel = document.getElementById('menuUsername'); if (userLabel) userLabel.innerText = currentUsername.toUpperCase(); if (window.AuthSys) { window.AuthSys.msg("ĐÃ KHÔI PHỤC KẾT NỐI CLOUD!", "#0f0"); if (window.auth && window.auth.currentUser) { await window.AuthSys.saveSync(); } } });
