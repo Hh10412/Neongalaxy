@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"name="viewport">
-  <title>Neon Galaxy: Overdrive v5.7 - SECURE CLOUD</title>
+  <title>Neon Galaxy: Overdrive v5.7.1 - SECURE CLOUD</title>
   <meta content="yes"name="apple-mobile-web-app-capable">
   <meta content="black-translucent"name="apple-mobile-web-app-status-bar-style">
   <meta content="yes"name="mobile-web-app-capable">
@@ -172,7 +172,7 @@ skipBtn.onclick = () => {
     </div>
 
     <h1 style="font-size:50px;margin:0;text-shadow:0 0 20px var(--p),0 0 40px var(--s);color:#fff;text-align:center;font-style:italic">NEON<br><span style="color:var(--p)">GALAXY</span></h1>
-    <p style="font-size:12px;color:#aaa;letter-spacing:4px;margin-bottom:20px;text-shadow:0 0 5px #fff">OVERDRIVE v5.7 SECURE</p>
+    <p style="font-size:12px;color:#aaa;letter-spacing:4px;margin-bottom:20px;text-shadow:0 0 5px #fff">OVERDRIVE v5.7.1 SECURE</p>
     
     <div style="background:rgba(0,255,255,.1);border:1px solid var(--p);padding:5px 15px;border-radius:20px;font-size:12px;margin-bottom:30px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:.2s;box-shadow:0 0 10px rgba(0,255,255,.2) inset" onclick="openProfile()">
         <img id="menuAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=guest" style="width:26px;height:26px;border-radius:50%;background:#000"> 
@@ -593,9 +593,17 @@ function getSecureDate() {
       
     function loop() {  
         if(isEndlessMode && !game.boss) {
-            game.surviveFrames++;
-            if(game.surviveFrames % 3600 === 0) { game.lvl++; if(game.lvl % 5 === 0) trackQuest('games', 1); spawnBoss(); AudioSys.sfxLevel(); showLvlUp(); }
+    game.surviveFrames++;
+    if(game.surviveFrames % 3600 === 0) { 
+        game.lvl++; 
+        if(game.lvl % 5 === 0) {
+            trackQuest('games', 1); 
+            spawnBoss(); 
         }
+        AudioSys.sfxLevel(); 
+        showLvlUp(); 
+    }
+}
         if(state !== 'PLAYING') return; requestAnimationFrame(loop); game.frame++;  
         ctx.save();  
         if(game.shake > 0) { ctx.translate((Math.random()-0.5)*game.shake, (Math.random()-0.5)*game.shake); game.shake *= 0.85; if(game.shake < 0.5) game.shake = 0; }  
@@ -788,7 +796,23 @@ function getSecureDate() {
         } ctx.textAlign = "left"; 
     }  
     
-    function checkLvl() { if(game.exp >= game.nextExp) { state = 'PAUSED'; game.exp = 0; game.nextExp *= 1.4; game.lvl++; if(game.lvl % 5 === 0) trackQuest('games', 1); spawnBoss(); AudioSys.sfxLevel(); showLvlUp(); } }  
+    function checkLvl() { 
+    if(game.exp >= game.nextExp) { 
+        state = 'PAUSED'; 
+        game.exp = 0; 
+        game.nextExp *= 1.4; 
+        game.lvl++; 
+        
+        // Gộp trackQuest và spawnBoss vào chung điều kiện mỗi 5 level
+        if(game.lvl % 5 === 0) {
+            trackQuest('games', 1); 
+            spawnBoss(); 
+        }
+        
+        AudioSys.sfxLevel(); 
+        showLvlUp(); 
+    } 
+}
     function showLvlUp() { const screen = document.getElementById('lvlScreen'), con = document.getElementById('skillContainer'); screen.classList.remove('hidden'); con.innerHTML = ''; const skills = [ {n:'TĂNG HỎA LỰC', d:'+20% Sát thương', f:()=>{player.atk*=1.2}}, {n:'SÚNG KÉP', d:'Tăng lượng đạn', f:()=>{player.mult++}}, {n:'SỬA CHỮA', d:'Hồi 50% Máu', f:()=>{player.hp = Math.min(player.maxHp, player.hp+(player.maxHp*0.5))}}, {n:'TĂNG TỐC', d:'Tốc độ x1.2', f:()=>{player.spd*=1.2}}, {n:'NẠP SIÊU NHANH', d:'Tốc độ bắn x1.6', f:()=>{ player.nextFr = Math.max(3, Math.floor(player.nextFr * 0.6)); }} ]; skills.sort(()=>Math.random()-0.5).slice(0,3).forEach(s => { let btn = document.createElement('button'); btn.className = 'btn-main'; btn.style = 'width:130px; height:150px; font-size:12px; border:2px solid var(--p); display:flex; flex-direction:column; justify-content:center; align-items:center; box-shadow: 0 0 15px rgba(0,255,255,0.2) inset;'; btn.innerHTML = `<b style="font-size:16px;color:var(--y);margin-bottom:15px;text-align:center;">${s.n}</b><span style="color:#aaa;text-align:center;">${s.d}</span>`; btn.onclick = () => { s.f(); screen.classList.add('hidden'); state = 'PLAYING'; loop(); }; con.appendChild(btn); }); }  
     
     function tryUlt() { 
@@ -1133,19 +1157,35 @@ function claimQuest(qId, tab) {
     function toggleAudio() { AudioSys.toggle(); }  
     
     cvs.addEventListener('touchstart', e=>{tX=e.touches[0].clientX; tY=e.touches[0].clientY}); cvs.addEventListener('touchmove', e=>{e.preventDefault(); tX=e.touches[0].clientX; tY=e.touches[0].clientY}, {passive:false}); cvs.addEventListener('mousemove', e=>{tX=e.clientX; tY=e.clientY});  
-    setInterval(() => {
-    let badge = document.getElementById('gachaTimerBadge');
-    if(!badge || !gData.quests) return;
-    let timeDiff = Date.now() - gData.lastFreeSpin;
-    if (timeDiff >= 86400000 || gData.lastFreeSpin === 0) {
-        badge.innerText = "SẴN SÀNG"; badge.style.color = "#0f0"; badge.style.borderColor = "#0f0";
-    } else {
-        let remain = 86400000 - timeDiff;
-        let h = Math.floor(remain / 3600000).toString().padStart(2, '0');
-        let m = Math.floor((remain % 3600000) / 60000).toString().padStart(2, '0');
-        badge.innerText = `${h}:${m}`; badge.style.color = "var(--p)"; badge.style.borderColor = "var(--p)";
-    }
-}, 60000); // Check mỗi phút 1 lần ngoài menu cho đỡ tốn tài nguyên
+    // Hàm cập nhật Badge Gacha ngoài Menu
+    window.updateMenuGachaBadge = function() {
+        let badge = document.getElementById('gachaTimerBadge');
+        if (!badge || typeof gData === 'undefined') return;
+        
+        // Khởi tạo nếu biến chưa tồn tại
+        if (typeof gData.lastFreeSpin === 'undefined') gData.lastFreeSpin = 0;
+        
+        // Dùng thời gian an toàn từ server
+        let now = typeof getSecureTime === 'function' ? getSecureTime() : Date.now();
+        let timeDiff = now - gData.lastFreeSpin;
+        
+        if (timeDiff >= 86400000 || gData.lastFreeSpin === 0) {
+            badge.innerText = "SẴN SÀNG"; 
+            badge.style.color = "#0f0"; 
+            badge.style.borderColor = "#0f0";
+        } else {
+            let remain = 86400000 - timeDiff;
+            let h = Math.floor(remain / 3600000).toString().padStart(2, '0');
+            let m = Math.floor((remain % 3600000) / 60000).toString().padStart(2, '0');
+            // Cập nhật cả giờ và phút hiển thị ngoài menu
+            badge.innerText = `${h}:${m}`; 
+            badge.style.color = "var(--p)"; 
+            badge.style.borderColor = "var(--p)";
+        }
+    };
+
+    // Cho chạy liên tục mỗi 1 giây (1000ms) để đồng bộ ngay khi load game
+    setInterval(window.updateMenuGachaBadge, 1000);
 
     window.startGame = startGame; window.togglePause = togglePause; window.buyUpgrade = buyUpgrade; 
         // Gắn các hàm Gacha và Quest vào global window
@@ -1167,8 +1207,8 @@ function claimQuest(qId, tab) {
     
     window.openModeScreen = function() { document.getElementById('menuScreen').classList.add('hidden'); document.getElementById('modeScreen').classList.remove('hidden'); if (gData.hasWon) { document.getElementById('btnModeEndless').style.display = 'block'; document.getElementById('lockedEndless').style.display = 'none'; } else { document.getElementById('btnModeEndless').style.display = 'none'; document.getElementById('lockedEndless').style.display = 'block'; } };
     window.startMode = function(mode) { isHardcoreMode = (mode === 1 || mode === true); isEndlessMode = (mode === 2); document.getElementById('modeScreen').classList.add('hidden'); startGame(); };
-    window.closeModeScreen = function() { document.getElementById('modeScreen').classList.add('hidden'); document.getElementById('menuScreen').classList.remove('hidden'); };
-
+    window.closeModeScreen = function() { document.getElementById('modeScreen').classList.add('hidden'); document.getElementById('menuScreen').classList.remove('hidden'); document.getElementById('menuScreen').classList.remove('hidden'); if(typeof window.updateMenuGachaBadge === 'function') window.updateMenuGachaBadge(); };
+    
   })(); 
   </script>
   <script>
