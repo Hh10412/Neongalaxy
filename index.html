@@ -14,13 +14,18 @@
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
-    <div id="introScreen" class="screen hidden" style="flex-direction:column; background:rgba(0,0,0,0.9);">
-    <div id="introContainer">
-        <div id="introHeader" class="sticky-header">[ TÍN HIỆU TỐI KHẨN ]</div>
-        <div id="introText" style="line-height:1.8; color:#ffcccc; text-align:left; font-size:15px;"></div>
-        <button id="skipIntroBtn" class="btn-main" style="margin-top:20px; display:none; width:100%;">TIẾP NHẬN NHIỆM VỤ</button>
-    </div>
+    <div id="introScreen" class="overlay hidden">
+    <div id="introContainer" style="width: 90%; max-width: 600px; max-height: 80vh; padding: 25px; box-sizing: border-box; overflow-y: auto; font-family: 'Orbitron', monospace; background: rgba(15, 5, 5, 0.95); border: 2px solid var(--r); border-radius: 8px; box-shadow: 0 0 25px rgba(255, 50, 50, 0.4) inset; position: relative;">
+  <div style="color: #fff; background: var(--r); display: block; padding: 5px 15px; font-size: 12px; font-weight: 900; margin-bottom: 15px; letter-spacing: 2px; animation: blink 1s infinite; position: sticky; top: -25px; z-index: 10; text-align: center; border-bottom: 2px solid #000;">
+    [ HỆ THỐNG CẢNH BÁO XÂM LĂNG - TỐI MẬT ]
+  </div>
+  
+  <div id="introText" style="font-size: clamp(12px, 3.8vw, 15px); line-height: 1.8; color: #ff5555; text-shadow: 0 0 5px #ff0000; white-space: pre-wrap; word-break: break-word; text-align: left; padding-top: 10px;"></div>
+  
+  <button id="skipIntroBtn" class="btn-main" style="margin-top: 25px; display: none; width: 100%; background: var(--r); color: #fff; box-shadow: 0 0 15px var(--r);">CHẤP NHẬN TỬ CHIẾN</button>
 </div>
+
+  </div>  
 </div>
 
 <script>
@@ -51,42 +56,45 @@ let isIntroDone = false;
 
 function typeStory() {
     const container = document.getElementById('introContainer');
-    const header = document.getElementById('introHeader');
+    if (lineIndex >= Math.floor(story.length / 3)) skipBtn.style.display = "block";
     
-    // Kích hoạt hiệu ứng chớp tắt cho tiêu đề khi bắt đầu chạy chữ
-    header.classList.add('active-blink');
-
-    if (lineIndex >= 3) skipBtn.style.display = "block";
-
     if (lineIndex < story.length) {
         if (charIndex < story[lineIndex].length) {
             introTextEl.innerHTML += story[lineIndex].charAt(charIndex);
             charIndex++;
-            
-            // Tự động cuộn xuống khi đầy chữ
+            // Tự động cuộn xuống khi chữ tràn
             container.scrollTop = container.scrollHeight;
-            
-            setTimeout(typeStory, 40);
+            setTimeout(typeStory, 50); 
         } else {
             introTextEl.innerHTML += "<br><br>";
             lineIndex++;
             charIndex = 0;
-            
-            // Cuộn xuống khi xong một đoạn
             container.scrollTop = container.scrollHeight;
-            
-            setTimeout(typeStory, 800);
+            setTimeout(typeStory, 1000); 
         }
     } else {
-        if (!isIntroDone) {
-            isIntroDone = true;
-            skipBtn.innerText = "XUẤT PHÁT NGAY!";
+        if (!isIntroDone) { 
+            isIntroDone = true; 
+            skipBtn.innerText = "XUẤT PHÁT NGAY!"; 
         }
     }
 }
 
 window.playIntroFlow = function() {
-    introScreen.classList.remove('hidden'); introTextEl.innerHTML = ""; lineIndex = 0; charIndex = 0; isIntroDone = false; skipBtn.style.display = "none"; skipBtn.innerText = "BỎ QUA / VÀO TRẬN"; typeStory();
+    // Chỉ chạy intro nếu gData tồn tại và người dùng chưa từng xem (hasSeenIntro là false hoặc undefined)
+    if (typeof gData !== 'undefined' && gData.hasSeenIntro) {
+        introScreen.classList.add('hidden'); // Ẩn luôn nếu đã xem
+        if (typeof window.startMode === 'function') { window.startMode(false); } else { isHardcoreMode = false; startGame(); }
+        return;
+    }
+    introScreen.classList.remove('hidden'); 
+    introTextEl.innerHTML = ""; 
+    lineIndex = 0; 
+    charIndex = 0; 
+    isIntroDone = false; 
+    skipBtn.style.display = "none"; 
+    skipBtn.innerText = "BỎ QUA / VÀO TRẬN"; 
+    typeStory();
 };
 
 skipBtn.onclick = () => {
@@ -342,7 +350,26 @@ skipBtn.onclick = () => {
     let player, enemies = [], bullets = [], particles = [], items = [], stars = [], texts = [], trails = [];  
     let game = { frame: 0, score: 0, lvl: 1, exp: 0, nextExp: 100, ult: 0, flash: 0, shake: 0, boss:false, surviveFrames:0 };  
     let tX = window.innerWidth / 2; let tY = window.innerHeight - 150;
-    let gData = { username: "", coins: 0, stats: { atk:0, hp:0, luck:0, crit:0, mag:0 }, owned: ['w1', 'h1'], equip: { w:'w1', h:'h1' }, maxLvl: 1, maxScore: 0, hasWon: false, maxTime: 0, avatar: '' };
+    let gData = JSON.parse(localStorage.getItem('neonGalaxyData')) || {
+    gold: 0,
+    highScore: 0,
+    gems: 0,
+    hasSeenIntro: false,
+    // Thêm hệ thống skillLevels mới, xóa bỏ skillTree kiểu true/false cũ
+    skillLevels: {
+        dmg: 0,       // Gốc: Sát thương
+        hp: 0,        // Nhánh 1: Máu
+        invinc: 0,    // Nhánh 1.1: Bất tử (0.5s/cấp)
+        fireRate: 0,  // Nhánh 2: Tốc độ bắn
+        crit: 0       // Nhánh 2.1: Chí mạng
+    }
+};
+
+// Đảm bảo dữ liệu cũ không bị lỗi nếu trước đó chưa có skillLevels
+if(!gData.skillLevels) {
+    gData.skillLevels = { dmg: 0, hp: 0, invinc: 0, fireRate: 0, crit: 0 };
+}
+
     let currentUsername = ""; let dbListener = null;
     // --- HỆ THỐNG THỜI GIAN BẢO MẬT ---
 let serverTimeOffset = 0; // Độ lệch giữa server và client
