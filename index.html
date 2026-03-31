@@ -13,8 +13,8 @@
 @import url(https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap);
 :root{--p:#0ff;--s:#f0f;--g:#0f0;--y:#ff0;--r:#ff3333;--gold:#ffd700;--bg:#050508;--purp:#b200ff}
 
-/* CẬP NHẬT BODY ĐỂ HỖ TRỢ HIỆU ỨNG VĂNG RA */
-body{
+/* Cấu hình body để hỗ trợ hiệu ứng thoát cưỡng ép */
+body {
     margin:0;
     overflow:hidden;
     background:var(--bg);
@@ -24,15 +24,16 @@ body{
     user-select:none;
     -webkit-touch-callout:none;
     -webkit-user-select:none;
-    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease, filter 0.5s ease;
-    transform-origin: center;
+    /* Hiệu ứng mượt mà khi thoát */
+    transition: transform 0.4s cubic-bezier(0.7, 0, 0.3, 1), opacity 0.3s ease, filter 0.3s ease;
+    will-change: transform, opacity, filter; 
 }
 
-/* CLASS HIỆU ỨNG KHI BẤM CẬP NHẬT */
+/* Hiệu ứng văng ra ngoài: Thu nhỏ về 0, lóe sáng và biến mất */
 .sw-exit-active {
-    transform: scale(0.7) translateY(-40vh) rotateX(15deg);
-    opacity: 0;
-    filter: blur(15px) brightness(1.5);
+    transform: scale(0) !important; /* Văng mất tích vào giữa */
+    opacity: 0 !important;
+    filter: brightness(5) blur(20px) !important; /* Lóe sáng rực lên khi văng */
     pointer-events: none;
 }
 
@@ -102,7 +103,6 @@ canvas{display:block;width:100vw;height:100vh}
 .online-style{background:rgba(0,200,81,.85);border:1px solid #00c851}
 .offline-style{background:rgba(255,53,71,.85);border:1px solid #ff3547}
 </style>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script><script>eruda.init()</script>
 </head>
 <body>
@@ -1636,8 +1636,7 @@ window.unlockSkill = function(id, sc, pl, cr, vo) {
   <script>
     if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').then(reg => {
-        
-        // --- PHẦN 1: LẮNG NGHE BIẾN ĐỔI (Dùng cho cả lúc mới load và lúc check định kỳ) ---
+        // --- 1. THEO DÕI BIẾN ĐỔI FILE SW.JS TRÊN SERVER ---
         reg.addEventListener('updatefound', () => {
             let newWorker = reg.installing;
             newWorker.addEventListener('statechange', () => {
@@ -1646,28 +1645,32 @@ window.unlockSkill = function(id, sc, pl, cr, vo) {
                     if (upBtn) {
                         upBtn.style.display = 'block';
                         upBtn.onclick = () => {
-                            upBtn.innerText = "...ĐANG CẬP NHẬT...";
+                            upBtn.innerText = "ĐANG CẬP NHẬT...";
+                            
+                            // HIỆU ỨNG VĂNG RA NGOÀI (CƯỠNG ÉP THOÁT)
                             document.body.classList.add('sw-exit-active');
-                            setTimeout(() => { newWorker.postMessage({ action: 'skipWaiting' }); }, 600);
+
+                            // Chờ hiệu ứng văng xong (400ms) rồi mới nạp bản mới
+                            setTimeout(() => {
+                                newWorker.postMessage({ action: 'skipWaiting' });
+                            }, 400); 
                         };
                     }
                 }
             });
         });
 
-        // --- PHẦN 2: VÒNG LẶP KIỂM TRA ĐỊNH KỲ (Check On/Off & Check Update) ---
+        // --- 2. VÒNG LẶP KIỂM TRA: ONLINE/OFFLINE & BẢN CẬP NHẬT MỚI ---
         setInterval(() => {
-            // A. Kiểm tra Update: Ép trình duyệt lên server soát lại file sw.js
-            // Nếu sw.js trên server khác byte-by-byte với bản hiện tại, 'updatefound' sẽ kích hoạt
-            reg.update().catch(err => console.log("Check update failed:", err));
+            // Tự động bảo trình duyệt lên server check file sw.js xem có byte nào đổi không
+            reg.update();
 
-            // B. Kiểm tra kết nối On/Off qua Service Worker
+            // Kiểm tra kết nối On/Off
             if (navigator.serviceWorker.controller) {
                 const messageChannel = new MessageChannel();
                 messageChannel.port1.onmessage = (event) => {
                     const alertBox = document.getElementById('network-status-alert');
                     if (!alertBox) return;
-
                     if (event.data.status === 'online') {
                         alertBox.innerText = "● SYSTEM ONLINE";
                         alertBox.className = 'show online-style';
@@ -1678,7 +1681,7 @@ window.unlockSkill = function(id, sc, pl, cr, vo) {
                 };
                 navigator.serviceWorker.controller.postMessage({ action: 'checkConnection' }, [messageChannel.port2]);
             }
-        }, 15000); // Check mỗi 15 giây để tránh làm phiền server quá nhiều
+        }, 5000); 
     });
 
     let refreshing = false;
