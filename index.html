@@ -1,9 +1,9 @@
 <!doctypehtml>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta"charset="UTF-8">
   <meta content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"name="viewport">
-  <title>Neon Galaxy: Overdrive v5.8.1 - SECURE CLOUD</title>
+  <title>Neon Galaxy: Overdrive v5.8.2 - SECURE CLOUD</title>
   <meta content="yes"name="apple-mobile-web-app-capable">
   <meta content="black-translucent"name="apple-mobile-web-app-status-bar-style">
   <meta content="yes"name="mobile-web-app-capable">
@@ -289,7 +289,7 @@ skipBtn.onclick = () => {
         </div>
     </div>
     <h1 style="font-size:50px;margin:0;text-shadow:0 0 20px var(--p),0 0 40px var(--s);color:#fff;text-align:center;font-style:italic">NEON<br><span style="color:var(--p)">GALAXY</span></h1>    
-    <p style="font-size:12px;color:#aaa;letter-spacing:4px;margin-bottom:20px;text-shadow:0 0 5px #fff">OVERDRIVE v5.8.1 SECURE</p>
+    <p style="font-size:12px;color:#aaa;letter-spacing:4px;margin-bottom:20px;text-shadow:0 0 5px #fff">OVERDRIVE v5.8.2 SECURE</p>
     
     <div style="background:rgba(0,255,255,.1);border:1px solid var(--p);padding:5px 15px;border-radius:20px;font-size:12px;margin-bottom:30px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:.2s;box-shadow:0 0 10px rgba(0,255,255,.2) inset" onclick="openProfile()">
         <img id="menuAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=guest" style="width:26px;height:26px;border-radius:50%;background:#000"> 
@@ -1636,6 +1636,8 @@ window.unlockSkill = function(id, sc, pl, cr, vo) {
   <script>
     if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').then(reg => {
+        
+        // --- PHẦN 1: LẮNG NGHE BIẾN ĐỔI (Dùng cho cả lúc mới load và lúc check định kỳ) ---
         reg.addEventListener('updatefound', () => {
             let newWorker = reg.installing;
             newWorker.addEventListener('statechange', () => {
@@ -1644,26 +1646,44 @@ window.unlockSkill = function(id, sc, pl, cr, vo) {
                     if (upBtn) {
                         upBtn.style.display = 'block';
                         upBtn.onclick = () => {
-                            upBtn.innerText = "ĐANG CẬP NHẬT...";
-                            
-                            // 1. Thêm class tạo hiệu ứng "văng ra" (thu nhỏ & bay lên)
+                            upBtn.innerText = "...ĐANG CẬP NHẬT...";
                             document.body.classList.add('sw-exit-active');
-
-                            // 2. Đợi hiệu ứng hình ảnh hoàn tất (600ms) rồi mới báo SW skipWaiting
-                            setTimeout(() => {
-                                newWorker.postMessage({ action: 'skipWaiting' });
-                            }, 600); 
+                            setTimeout(() => { newWorker.postMessage({ action: 'skipWaiting' }); }, 600);
                         };
                     }
                 }
             });
         });
+
+        // --- PHẦN 2: VÒNG LẶP KIỂM TRA ĐỊNH KỲ (Check On/Off & Check Update) ---
+        setInterval(() => {
+            // A. Kiểm tra Update: Ép trình duyệt lên server soát lại file sw.js
+            // Nếu sw.js trên server khác byte-by-byte với bản hiện tại, 'updatefound' sẽ kích hoạt
+            reg.update().catch(err => console.log("Check update failed:", err));
+
+            // B. Kiểm tra kết nối On/Off qua Service Worker
+            if (navigator.serviceWorker.controller) {
+                const messageChannel = new MessageChannel();
+                messageChannel.port1.onmessage = (event) => {
+                    const alertBox = document.getElementById('network-status-alert');
+                    if (!alertBox) return;
+
+                    if (event.data.status === 'online') {
+                        alertBox.innerText = "● SYSTEM ONLINE";
+                        alertBox.className = 'show online-style';
+                    } else {
+                        alertBox.innerText = "● SYSTEM OFFLINE";
+                        alertBox.className = 'show offline-style';
+                    }
+                };
+                navigator.serviceWorker.controller.postMessage({ action: 'checkConnection' }, [messageChannel.port2]);
+            }
+        }, 15000); // Check mỗi 15 giây để tránh làm phiền server quá nhiều
     });
 
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (!refreshing) {
-            // Khi SW mới chiếm quyền, trình duyệt sẽ tự reload để lấy code mới
             window.location.reload();
             refreshing = true;
         }
