@@ -3,7 +3,7 @@
 <head>
   <meta"charset="UTF-8">
   <meta content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"name="viewport">
-  <title>Neon Galaxy: Overdrive v5.8.1 - SECURE CLOUD</title>
+  <title>Neon Galaxy: Overdrive v5.8.1.1 - SECURE CLOUD</title>
   <meta content="yes"name="apple-mobile-web-app-capable">
   <meta content="black-translucent"name="apple-mobile-web-app-status-bar-style">
   <meta content="yes"name="mobile-web-app-capable">
@@ -289,7 +289,7 @@ skipBtn.onclick = () => {
         </div>
     </div>
     <h1 style="font-size:50px;margin:0;text-shadow:0 0 20px var(--p),0 0 40px var(--s);color:#fff;text-align:center;font-style:italic">NEON<br><span style="color:var(--p)">GALAXY</span></h1>    
-    <p style="font-size:12px;color:#aaa;letter-spacing:4px;margin-bottom:20px;text-shadow:0 0 5px #fff">OVERDRIVE v5.8.1 SECURE</p>
+    <p style="font-size:12px;color:#aaa;letter-spacing:4px;margin-bottom:20px;text-shadow:0 0 5px #fff">OVERDRIVE v5.8.1.1 SECURE</p>
     
     <div style="background:rgba(0,255,255,.1);border:1px solid var(--p);padding:5px 15px;border-radius:20px;font-size:12px;margin-bottom:30px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:.2s;box-shadow:0 0 10px rgba(0,255,255,.2) inset" onclick="openProfile()">
         <img id="menuAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=guest" style="width:26px;height:26px;border-radius:50%;background:#000"> 
@@ -831,7 +831,7 @@ if(gData.hiddenSkills.overclock.activated) {
         // Xử lý kích hoạt sự kiện sau khi lên cấp (chờ Boss chết mới chạy)
 if (game.pendingEventRoll && !game.boss) {
     game.pendingEventRoll = false;
-    if (Math.random() < 0.1) { // 10% tỷ lệ xảy ra sự kiện
+    if (Math.random() < 0.3) { // 10% tỷ lệ xảy ra sự kiện
         game.activeEvent = Math.random() < 0.5 ? 'meteor' : 'supply';
         let alertColor = game.activeEvent === 'meteor' ? '#ff4444' : '#00ffff';
         let alertText = game.activeEvent === 'meteor' ? "BÃO THIÊN THẠCH" : "HẠM ĐỘI TIẾP TẾ";
@@ -1301,21 +1301,34 @@ function spinGacha(isFree) {
 // --- HỆ THỐNG NHIỆM VỤ RANDOM (MỚI) ---
 const QUEST_TEMPLATES = {
     daily: [
-        { desc: 'Tham chiến {amt} trận', type: 'games', amts: [3, 5, 7], rewType: 'gold', rewVals: [500, 1000, 1500] },
-        { desc: 'Kiếm {amt} Vàng', type: 'gold', amts: [2000, 5000, 8000], rewType: 'ticket', rewVals: [1, 1, 2] },
-        { desc: 'Tiêu diệt {amt} kẻ địch', type: 'kills', amts: [50, 100, 200], rewType: 'gold', rewVals: [800, 1500, 2500] },
-        { desc: 'Hạ gục {amt} Boss', type: 'boss', amts: [1, 2, 3], rewType: 'equip', min: 2, max: 4 },
-        { desc: 'Tích lũy {amt} Vàng', type: 'gold', amts: [3000, 4000], rewType: 'gold', rewVals: [1000, 1200] },
-        { desc: 'Cày {amt} ván game', type: 'games', amts: [4, 6], rewType: 'ticket', rewVals: [1, 2] },
-        { desc: 'Phá hủy {amt} tàu địch', type: 'kills', amts: [80, 150], rewType: 'ticket', rewVals: [1, 2] }
+        // --- NHIỆM VỤ CHIẾN ĐẤU (Type: games, kills, boss) ---
+        { desc: 'Tham chiến {amt} trận', type: 'games', amts: [3, 5, 10], rewType: 'gold', rewVals: [500, 1000, 2000] },
+        { desc: 'Tiêu diệt {amt} kẻ địch', type: 'kills', amts: [50, 150, 300], rewType: 'gold', rewVals: [800, 2000, 4000] },
+        { desc: 'Hạ gục {amt} Boss', type: 'boss', amts: [1, 2, 5], rewType: 'equip', min: 2, max: 4 },
+        { desc: 'Cày {amt} ván game liên tục', type: 'games', amts: [4, 8], rewType: 'ticket', rewVals: [1, 2] },
+        { desc: 'Quét sạch {amt} phi thuyền địch', type: 'kills', amts: [100, 250], rewType: 'ticket', rewVals: [1, 2] },
+
+        // --- NHIỆM VỤ TÀI CHÍNH (Type: gold) ---
+        { desc: 'Kiếm {amt} Vàng từ trận đấu', type: 'gold', amts: [2000, 5000, 10000], rewType: 'ticket', rewVals: [1, 2, 3] },
+        { desc: 'Tích lũy {amt} Vàng', type: 'gold', amts: [3000, 7000], rewType: 'gold', rewVals: [1000, 2500] },
+        
+        // --- NHIỆM VỤ THỬ THÁCH MỚI (Nếu code bạn hỗ trợ các type này) ---
+        { desc: 'Đạt mốc {amt} điểm trong một trận', type: 'score', amts: [10000, 20000], rewType: 'gold', rewVals: [1500, 3000] },
+        { desc: 'Sống sót qua {amt} đợt quái', type: 'waves', amts: [10, 20], rewType: 'equip', min: 3, max: 5 }
     ],
     weekly: [
-        { desc: 'Chiến đấu {amt} trận', type: 'games', amts: [20, 30, 50], rewType: 'gold', rewVals: [10000, 15000, 25000] },
-        { desc: 'Tiêu diệt {amt} kẻ địch', type: 'kills', amts: [1000, 1500, 3000], rewType: 'ticket', rewVals: [3, 4, 6] },
-        { desc: 'Tiêu diệt {amt} Boss', type: 'boss', amts: [10, 15, 25], rewType: 'equip', min: 4, max: 6 },
-        { desc: 'Kiếm {amt} Vàng', type: 'gold', amts: [50000, 100000, 150000], rewType: 'equip', min: 5, max: 7 },
-        { desc: 'Quét sạch {amt} quân địch', type: 'kills', amts: [2000, 2500], rewType: 'equip', min: 5, max: 6 },
-        { desc: 'Thu thập {amt} Vàng', type: 'gold', amts: [80000, 120000], rewType: 'ticket', rewVals: [4, 6] }
+        // --- NHIỆM VỤ CÀY CUỐC (Số lượng lớn) ---
+        { desc: 'Tổng tham chiến {amt} trận', type: 'games', amts: [25, 50, 100], rewType: 'gold', rewVals: [12000, 30000, 70000] },
+        { desc: 'Tiêu diệt {amt} kẻ địch trong tuần', type: 'kills', amts: [1000, 2500, 5000], rewType: 'ticket', rewVals: [5, 10, 20] },
+        { desc: 'Chinh phục {amt} Boss', type: 'boss', amts: [10, 25, 50], rewType: 'equip', min: 5, max: 10 },
+        
+        // --- NHIỆM VỤ TÀI SẢN ---
+        { desc: 'Thu thập tổng {amt} Vàng', type: 'gold', amts: [50000, 150000, 300000], rewType: 'equip', min: 6, max: 12 },
+        { desc: 'Kiếm được {amt} Vàng từ phần thưởng', type: 'gold', amts: [80000, 200000], rewType: 'ticket', rewVals: [6, 15] },
+        
+        // --- NHIỆM VỤ CAO CẤP ---
+        { desc: 'Phá hủy {amt} tàu tinh nhuệ', type: 'kills', amts: [500, 1200], rewType: 'equip', min: 8, max: 15 },
+        { desc: 'Đạt tổng điểm tuần {amt}', type: 'score', amts: [100000, 500000], rewType: 'gold', rewVals: [20000, 100000] }
     ]
 };
 
