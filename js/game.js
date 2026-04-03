@@ -276,7 +276,7 @@ if(gData.hiddenSkills.overclock.activated) {
       
         enemies.forEach(e => ePool.release(e)); enemies = []; bullets.forEach(b => bPool.release(b)); bullets = []; particles.forEach(p => pPool.release(p)); particles = []; texts.forEach(t => tPool.release(t)); texts = []; items = []; trails = [];  
     
-        game = { frame: 0, score: 0, lvl: 1, exp: 0, nextExp: 100, ult: 0, flash: 0, shake: 0, boss:false, surviveFrames: 0, lastTime: performance.now(), activeEvent: null, pendingEventRoll: false, droneAngle: 0 }; 
+        game = { frame: 0, score: 0, lvl: 1, exp: 0, nextExp: 100, ult: 0, flash: 0, shake: 0, boss:false, surviveFrames: 0, lastTime: performance.now(), activeEvent: null, pendingEventRoll: false, droneAngle: 0, combo: 0, comboTimer: 0, maxCombo: 0 }; 
 player.drone = gData.equip.d || '';
 
         if (isEndlessMode) {
@@ -450,7 +450,24 @@ if(gData.hiddenSkills.aura.activated) {
         updateBullets(); updateEnemies(); updateParticles(); updateItems(); updateTexts(); AudioSys.updateButtons();
       
         if(game.flash > 0) { ctx.fillStyle = `rgba(255, 255, 255, ${game.flash})`; ctx.fillRect(-20,-20,W+40,H+40); game.flash -= 0.05; }  
-        ctx.restore(); updateHUD(); 
+        ctx.restore(); 
+        
+        // VẼ HUD COMBO & TÍNH TOÁN GIẢM COMBO
+        if (game.comboTimer > 0) {
+            game.comboTimer--;
+            if (game.comboTimer <= 0 && game.combo > 5) { addText("COMBO DROPPED", player.x, player.y - 40, false, '#aaa'); game.combo = 0; }
+        }
+        if (game.combo > 1) {
+            ctx.save();
+            ctx.fillStyle = `rgba(255, 215, 0, ${Math.min(1, game.comboTimer/60)})`;
+            ctx.font = "italic 900 24px Orbitron"; ctx.textAlign = "right"; ctx.shadowBlur = 10; ctx.shadowColor = "#ff0";
+            ctx.fillText(game.combo + " COMBO", W - 20, 160);
+            ctx.font = "700 12px Orbitron"; ctx.fillStyle = "#0ff"; ctx.shadowColor = "#0ff";
+            ctx.fillText("+" + (game.combo * 2) + "% THƯỞNG", W - 20, 180);
+            ctx.restore();
+        }
+        
+        updateHUD(); 
     }  
       
     function spawnEnemy() {  
@@ -629,10 +646,18 @@ if(e.type === 'boss') {
     rewardAmount = Math.floor(500 * coinMultiplier); secureAddCoins(rewardAmount);
     addText("BOSS BONUS +" + rewardAmount, e.x, e.y - 40, true, '#ffd700', true);
     if (e.name === "Neural Overlord") gData.hasWon = true; save();
-} else { 
+    } else { 
     trackQuest('kills', 1); 
-    game.score += (e.type==='tank'?400:150); rewardAmount = Math.floor(20 * coinMultiplier);
+    // XỬ LÝ TĂNG COMBO
+    game.combo++; game.comboTimer = 180; // Giữ combo trong 3 giây (ở 60fps)
+    if (game.combo > game.maxCombo) game.maxCombo = game.combo;
+    
+    let comboMultiplier = 1 + (game.combo * 0.02); // Mỗi combo tăng 2% thưởng
+    game.score += Math.floor((e.type==='tank'?400:150) * comboMultiplier); 
+    rewardAmount = Math.floor(20 * coinMultiplier * comboMultiplier);
+    
     let rngDrop = Math.random();
+
     // Thêm tỷ lệ rớt Thẻ (Card)
     if (rngDrop < 0.0005) { items.push({x:e.x, y:e.y, t: 'card', cType: 'card_plat'}); }
     else if (rngDrop < 0.001) { items.push({x:e.x, y:e.y, t: 'card', cType: 'card_gold'}); }
