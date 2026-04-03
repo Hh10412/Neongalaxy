@@ -201,7 +201,14 @@ function getSecureDate() {
         h23:{ n: "Supermassive", d: "Máu +80000", cost: 250000000, hp:80000, spd:-0.08 },
         h24:{ n: "Event Horizon", d: "Máu +40000, Tốc độ", cost: 380000000, hp:40000, spd:0.1 },
         h25:{ n: "IMMORTAL", d: "VỎ TÀU BẤT TỬ", cost: 600000000, hp:150000, spd:0.12 }
-    }  
+    },
+    drones: {
+        d1: { n: "Scout Orb", d: "Bắn đạn thường", cost: 2000, color: '#0ff', fr: 60, dmg: 0.3, type: 'std' },
+        d2: { n: "Laser Bit", d: "Tia xuyên thấu", cost: 15000, color: '#f0f', fr: 90, dmg: 1.0, type: 'laser' },
+        d3: { n: "Plasma Core", d: "Đạn đuổi tự động", cost: 45000, color: '#0f0', fr: 120, dmg: 0.8, type: 'homing' },
+        d4: { n: "Nova Star", d: "Bắn chùm lửa", cost: 120000, color: '#ff3300', fr: 80, dmg: 0.6, type: 'spread' },
+        d5: { n: "Void Eye", d: "Mắt xé rách hư không", cost: 50000000, color: '#b200ff', fr: 45, dmg: 2.0, type: 'homing' }
+    }
 };
 
     const UPGRADES = { atk: { n: "Damage", cost: 100, max: 20, desc: "+10% ST" }, hp: { n: "Armor", cost: 100, max: 20, desc: "+50 Máu" }, luck: { n: "Luck", cost: 200, max: 10, desc: "Tỷ lệ đồ xịn" }, crit: { n: "Critical", cost: 150, max: 10, desc: "+5% Chí mạng" }, mag: { n: "Magnet", cost: 100, max: 10, desc: "Tầm hút đồ" } };  
@@ -269,7 +276,8 @@ if(gData.hiddenSkills.overclock.activated) {
       
         enemies.forEach(e => ePool.release(e)); enemies = []; bullets.forEach(b => bPool.release(b)); bullets = []; particles.forEach(p => pPool.release(p)); particles = []; texts.forEach(t => tPool.release(t)); texts = []; items = []; trails = [];  
     
-        game = { frame: 0, score: 0, lvl: 1, exp: 0, nextExp: 100, ult: 0, flash: 0, shake: 0, boss:false, surviveFrames: 0, lastTime: performance.now(), activeEvent: null, pendingEventRoll: false }; 
+        game = { frame: 0, score: 0, lvl: 1, exp: 0, nextExp: 100, ult: 0, flash: 0, shake: 0, boss:false, surviveFrames: 0, lastTime: performance.now(), activeEvent: null, pendingEventRoll: false, droneAngle: 0 }; 
+player.drone = gData.equip.d || '';
 
         if (isEndlessMode) {
             document.getElementById('lvlContainer').style.display = 'none'; document.getElementById('hudTimer').style.display = 'block';
@@ -373,9 +381,45 @@ ctx.fillRect(-20,-20,W+40,H+40);
         
         ctx.rotate((dx * 0.05) * Math.PI/180 * 20); ctx.fillStyle = EQUIP_DB.weapons[player.wep].color;  
         ctx.beginPath(); ctx.moveTo(0,-20); ctx.lineTo(18,15); ctx.lineTo(0,10); ctx.lineTo(-18,15); ctx.fill();  
-        ctx.fillStyle = '#fff'; ctx.fillRect(-2,-2,4,4); ctx.restore(); ctx.globalAlpha = 1;  
+                ctx.fillStyle = '#fff'; ctx.fillRect(-2,-2,4,4); ctx.restore(); ctx.globalAlpha = 1;  
     
+        // --- LOGIC DRONE BAY QUANH TÀU VÀ TỰ BẮN ---
+        if (player.drone && EQUIP_DB.drones[player.drone]) {
+            let dDb = EQUIP_DB.drones[player.drone];
+            game.droneAngle += 0.05; // Tốc độ quay quanh tàu
+            let dX = player.x + Math.cos(game.droneAngle) * 50; // Bán kính 50
+            let dY = player.y + Math.sin(game.droneAngle) * 30; // Bán kính quỹ đạo elip
+
+            // Vẽ Drone
+            ctx.save();
+            ctx.translate(dX, dY);
+            ctx.rotate(game.frame * 0.1); // Drone tự xoay tròn
+            ctx.fillStyle = dDb.color;
+            ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill(); // Lõi phát sáng
+            // Vẽ vòng năng lượng
+            ctx.strokeStyle = `rgba(255,255,255, ${0.3 + Math.sin(game.frame*0.2)*0.2})`;
+            ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.stroke();
+            ctx.restore();
+
+            // Drone tự động nhả đạn
+            if (game.frame % dDb.fr === 0 && enemies.length > 0) {
+                let dDmg = player.atk * dDb.dmg;
+                if(dDb.type === 'laser') {
+                    spawnBullet({x: dX, y: dY - 10, vx: 0, vy: -30, dmg: dDmg, c: dDb.color, type: 'pierce', h: 60, w: 4});
+                } else if (dDb.type === 'homing') {
+                    spawnBullet({x: dX, y: dY - 10, vx: (Math.random()-0.5)*4, vy: -5, dmg: dDmg, c: dDb.color, type: 'homing', r: 5});
+                } else if (dDb.type === 'spread') {
+                    for(let i=-1; i<=1; i++) spawnBullet({x:dX, y:dY-10, vx:i*2, vy:-10, dmg:dDmg*0.7, c:dDb.color, type:'std', w:3, h:8});
+                } else {
+                    spawnBullet({x: dX, y: dY - 10, vx: 0, vy: -15, dmg: dDmg, c: dDb.color, type: 'std', w: 3, h: 10});
+                }
+            }
+        }
+        // ------------------------------------------
+
         if(game.frame % player.nextFr === 0) fire(); if(game.frame % Math.max(60, 100 - game.lvl*2) === 0 && !game.boss) {
+
     // Nếu có sự kiện, 30% quái sinh ra sẽ là quái sự kiện
     if (game.activeEvent && Math.random() < 0.3) {
         let e = ePool.get();
@@ -705,7 +749,25 @@ else if(it.t==='bp') {
       
     function openLeaderboard() { document.getElementById('menuScreen').classList.add('hidden'); document.getElementById('lbScreen').classList.remove('hidden'); if (gData.hasWon) document.getElementById('lbTabEndless').style.display = 'block'; window.AuthSys.showLB('maxLvl', document.querySelector('.lb-tab')); }
     function closeLeaderboard() { document.getElementById('lbScreen').classList.add('hidden'); document.getElementById('menuScreen').classList.remove('hidden'); }
-    function openEquip() { document.getElementById('menuScreen').classList.add('hidden'); document.getElementById('equipScreen').classList.remove('hidden'); document.getElementById('eqCoin').innerText = gData.coins; renderEquipGrid('weaponGrid', EQUIP_DB.weapons, 'w'); renderEquipGrid('hullGrid', EQUIP_DB.hulls, 'h'); }  
+    window.switchEqTab = function(tab) {
+        ['w', 'h', 'd'].forEach(t => {
+            document.getElementById('tabEq' + t.toUpperCase()).classList.remove('active');
+            document.getElementById('wrapEq' + t.toUpperCase()).style.display = 'none';
+        });
+        document.getElementById('tabEq' + tab.toUpperCase()).classList.add('active');
+        document.getElementById('wrapEq' + tab.toUpperCase()).style.display = 'flex';
+    };
+
+    function openEquip() { 
+        if(!gData.equip.d) gData.equip.d = ''; // Sửa lỗi cho tài khoản cũ chưa có slot drone
+        document.getElementById('menuScreen').classList.add('hidden'); 
+        document.getElementById('equipScreen').classList.remove('hidden'); 
+        document.getElementById('eqCoin').innerText = gData.coins; 
+        renderEquipGrid('weaponGrid', EQUIP_DB.weapons, 'w'); 
+        renderEquipGrid('hullGrid', EQUIP_DB.hulls, 'h'); 
+        renderEquipGrid('droneGrid', EQUIP_DB.drones, 'd'); 
+    }  
+ 
      // --- LOGIC GACHA ---
 let gachaInterval = null;
 
@@ -1040,7 +1102,7 @@ function claimQuest(qId, tab) {
 }
 // --- KẾT THÚC HỆ THỐNG NHIỆM VỤ ---
 
-    function renderEquipGrid(id, db, type) { const el = document.getElementById(id); el.innerHTML = ''; for(let k in db) { let item = db[k], owned = gData.owned.includes(k), equipped = gData.equip[type] === k; let div = document.createElement('div'); div.className = `equip-card ${equipped?'active':''} ${owned?'owned':''}`; div.onclick = () => handleEquipClick(k, type, db[k].cost); div.innerHTML = `<span class="equip-icon" style="color:${item.color||'#fff'}">${type=='w'?'⚔️':'🛡️'}</span><span class="equip-name">${item.n}</span><span class="equip-stat">${item.d}</span>${equipped ? '<b style="color:var(--p);font-size:11px">ĐANG DÙNG</b>' : (owned ? '<span style="color:#ff0;font-size:10px">SỞ HỮU</span>' : `<span class="cost-badge">${item.cost} 💰</span>`)}`; el.appendChild(div); } }  
+    function renderEquipGrid(id, db, type) { const el = document.getElementById(id); el.innerHTML = ''; for(let k in db) { let item = db[k], owned = gData.owned.includes(k), equipped = gData.equip[type] === k; let div = document.createElement('div'); div.className = `equip-card ${equipped?'active':''} ${owned?'owned':''}`; div.onclick = () => handleEquipClick(k, type, db[k].cost); div.innerHTML = `<span class="equip-icon" style="color:${item.color||'#fff'}">${type=='w' ? '⚔️' : (type=='h' ? '🛡️' : '🛸')}</span><span class="equip-name">${item.n}</span><span class="equip-stat">${item.d}</span>${equipped ? '<b style="color:var(--p);font-size:11px">ĐANG DÙNG</b>' : (owned ? '<span style="color:#ff0;font-size:10px">SỞ HỮU</span>' : `<span class="cost-badge">${item.cost} 💰</span>`)}`; el.appendChild(div); } }  
     function handleEquipClick(id, type, cost) { if(gData.owned.includes(id)) { gData.equip[type] = id; save(); openEquip(); AudioSys.playTone(600, 'sine', 0.1); } else { if(secureDeductCoins(cost)) { gData.owned.push(id); gData.equip[type] = id; save(); openEquip(); AudioSys.sfxCoin(); } else { alert("Không đủ vàng hoặc lỗi bảo mật!"); } } }  
     function openShop() { document.getElementById('menuScreen').classList.add('hidden'); document.getElementById('shopScreen').classList.remove('hidden'); document.getElementById('shopCoin').innerText = gData.coins; const g = document.getElementById('shopGrid'); g.innerHTML = ''; for(let k in UPGRADES) { let u = UPGRADES[k], lv = gData.stats[k] || 0, cost = Math.floor(u.cost * Math.pow(1.5, lv)), isMax = lv >= u.max; g.innerHTML += `<div class="equip-card"><span class="equip-name">${u.n} <span style="color:var(--y)">(Lv ${lv})</span></span><span class="equip-stat">${u.desc}</span><button class="btn-main" style="padding:8px; font-size:11px; width:100%; margin:0;" onclick="buyUpgrade('${k}', ${cost}, ${u.max})">${isMax ? 'MAX' : cost + ' 💰'}</button></div>`; } }  
     function buyUpgrade(key, cost, max) { if(!verifyIntegrity()) return; if((gData.stats[key]||0) >= max) return; if(secureDeductCoins(cost)) { gData.stats[key] = (gData.stats[key]||0) + 1; save(); openShop(); AudioSys.sfxCoin(); } else { alert("Cày thêm vàng để nâng!"); } }  
@@ -1161,4 +1223,3 @@ window.unlockSkill = function(id, sc, pl, cr, vo) {
 };
 
   })(); 
- 
