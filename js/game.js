@@ -27,27 +27,56 @@ if(!gData.skillLevels) {
     // --- HỆ THỐNG THỜI GIAN BẢO MẬT ---
 let serverTimeOffset = 0; // Độ lệch giữa server và client
 let lastKnownOnlineTime = 0;
+async function syncData() {
+  if (!navigator.onLine) return;
 
-// Gọi hàm này khi bắt đầu game hoặc khi có mạng lại
-async function syncServerTime() {
-    try {
-        // Lấy giờ chuẩn theo múi giờ Việt Nam (UTC+7)
-        const response = await fetch('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh');
-        const data = await response.json();
-        const realTime = new Date(data.datetime).getTime();
-        
-        // Tính độ lệch: Giờ thực tế - Giờ thiết bị
-        serverTimeOffset = realTime - Date.now();
-        lastKnownOnlineTime = realTime;
-        
-        // Lưu offset vào localStorage để dùng khi offline
-        localStorage.setItem('ng_time_offset', serverTimeOffset);
-    } catch (e) {
-        // Nếu offline, lấy lại offset đã lưu từ trước
-        serverTimeOffset = parseInt(localStorage.getItem('ng_time_offset')) || 0;
-    }
+  const local = JSON.parse(localStorage.getItem("gameData") || "{}");
+
+  const cloudSnap = await fb.getDoc(fb.doc(db, "users", auth.currentUser.uid));
+  const cloud = cloudSnap.exists() ? cloudSnap.data() : null;
+
+  if (!cloud) {
+    // chưa có cloud → đẩy local lên
+    await fb.setDoc(fb.doc(db, "users", auth.currentUser.uid), local);
+    return;
+  }
+
+  // So sánh thời gian
+  if ((local.lastUpdate || 0) > (cloud.lastUpdate || 0)) {
+    // local mới hơn → push lên cloud
+    await fb.setDoc(fb.doc(db, "users", auth.currentUser.uid), local);
+  } else {
+    // cloud mới hơn → ghi đè local
+    localStorage.setItem("gameData", JSON.stringify(cloud));
+    gData = cloud;
+  }
 }
+async function claimOfflineReward() {
+  const now = await getServerTime();
 
+  const last = gData.lastClaimTime || now;
+  const diff = now - last;
+
+  if (diff <= 0) return;
+
+  // ví dụ: 1 giây = 1 coin
+  const reward = Math.floor(diff / 1000);
+
+  gData.coin += reward;
+  gData.lastClaimTime = now;
+
+  save();
+}
+// Gọi hàm này khi bắt đầu game hoặc khi có mạng lại
+async function getServerTime() {
+  try {
+    const res = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC');
+    const data = await res.json();
+    return new Date(data.utc_datetime).getTime();
+  } catch {
+    return Date.now(); // fallback nếu offline
+  }
+}
 // Hàm thay thế cho Date.now() và new Date()
 function getSecureTime() {
     return Date.now() + serverTimeOffset; 
@@ -78,8 +107,45 @@ function getSecureDate() {
      
     const SECRET_KEY = "NEON_GALAXY_ULTRA_SECRET_2026"; const SAVE_KEY = "neonGalaxySave_Secure_v4"; 
     const secureSaveLocal = (data) => { try { if (typeof CryptoJS !== 'undefined') { localStorage.setItem(SAVE_KEY, CryptoJS.AES.encrypt(JSON.stringify(data), SECRET_KEY).toString()); } else { localStorage.setItem(SAVE_KEY + "_backup", JSON.stringify(data)); } } catch(e){} };
-    const secureLoadLocal = () => { try { if (typeof CryptoJS !== 'undefined') { const encrypted = localStorage.getItem(SAVE_KEY); if (encrypted) return JSON.parse(CryptoJS.AES.decrypt(encrypted, SECRET_KEY).toString(CryptoJS.enc.Utf8)); } const backup = localStorage.getItem(SAVE_KEY + "_backup"); if (backup) return JSON.parse(backup); return null; } catch (e) { return null; } };
-    
+    const secureLoadLocal = () => {
+  try {
+    let dataEnc = null;
+    let dataBackup = null;
+
+    // đọc file mã hóa
+    if (typeof CryptoJS !== 'undefined') {
+      const encrypted = localStorage.getItem(SAVE_KEY);
+      if (encrypted) {
+        try {
+          dataEnc = JSON.parse(
+            CryptoJS.AES.decrypt(encrypted, SECRET_KEY)
+              .toString(CryptoJS.enc.Utf8)
+          );
+        } catch {}
+      }
+    }
+
+    // đọc backup
+    const backup = localStorage.getItem(SAVE_KEY + "_backup");
+    if (backup) {
+      try {
+        dataBackup = JSON.parse(backup);
+      } catch {}
+    }
+
+    // chọn cái mới hơn
+    if (dataEnc && dataBackup) {
+      return (dataEnc.lastUpdate || 0) > (dataBackup.lastUpdate || 0)
+        ? dataEnc
+        : dataBackup;
+    }
+
+    return dataEnc || dataBackup || null;
+
+  } catch (e) {
+    return null;
+  }
+};
     window.AuthSys = {
         isLoginMode: true,
         toEmail: function(u) { return u.toLowerCase() + "@neongalaxy.io"; },
@@ -100,8 +166,8 @@ function getSecureDate() {
         },
         fetchAndLoadProfile: async function(uid, u) {
             currentUsername = u; try { let localData = secureLoadLocal(); const docSnap = await window.fb.getDoc(window.fb.doc(window.db, "users", uid));
-            if(docSnap.exists()) { let cloudData = docSnap.data().data; if (localData && localData.username !== u) { gData = cloudData; } else if (localData) { let localTime = localData.lastUpdated || 0; let cloudTime = cloudData.lastUpdated || 0; gData = (localTime > cloudTime) ? localData : cloudData; gData.maxScore = Math.max(localData.maxScore || 0, cloudData.maxScore || 0); gData.maxLvl = Math.max(localData.maxLvl || 1, cloudData.maxLvl || 1); gData.maxScore_hc = Math.max(localData.maxScore_hc || 0, cloudData.maxScore_hc || 0); gData.maxLvl_hc = Math.max(localData.maxLvl_hc || 1, cloudData.maxLvl_hc || 1); } else { gData = cloudData; } } else { gData = { username: u, coins: 0, stats: { atk:0, hp:0, luck:0, crit:0, mag:0 }, owned: ['w1', 'h1'], equip: { w:'w1', h:'h1' }, maxLvl: 1, maxScore: 0, hasWon: false, maxTime: 0, avatar: u, lastUpdated: Date.now(), hasSeenIntro: false }; }
-            syncHash(); secureSaveLocal(gData); document.getElementById('menuUsername').innerText = currentUsername.toUpperCase(); document.getElementById('menuAvatar').src = `https://api.dicebear.com/7.x/bottts/svg?seed=${gData.avatar}`; this.setLoading(false); document.getElementById('authScreen').classList.add('hidden'); if (!gData.hasSeenIntro) { window.playIntroFlow(); } else { document.getElementById('menuScreen').classList.remove('hidden'); } } catch(e) { }
+            if(docSnap.exists()) { let cloudData = docSnap.data().data; if (localData && localData.username.toLowerCase() !== u.toLowerCase()) { gData = cloudData; } else if (localData) { let localTime = localData.lastUpdated || 0; let cloudTime = cloudData.lastUpdated || 0; gData = (localTime > cloudTime) ? localData : cloudData; gData.maxScore = Math.max(localData.maxScore || 0, cloudData.maxScore || 0); gData.maxLvl = Math.max(localData.maxLvl || 1, cloudData.maxLvl || 1); gData.maxScore_hc = Math.max(localData.maxScore_hc || 0, cloudData.maxScore_hc || 0); gData.maxLvl_hc = Math.max(localData.maxLvl_hc || 1, cloudData.maxLvl_hc || 1); } else { gData = cloudData; } } else { gData = { username: u, coins: 0, stats: { atk:0, hp:0, luck:0, crit:0, mag:0 }, owned: ['w1', 'h1'], equip: { w:'w1', h:'h1' }, maxLvl: 1, maxScore: 0, hasWon: false, maxTime: 0, avatar: u, lastUpdated: Date.now(), hasSeenIntro: false }; }
+            syncHash(); secureSaveLocal(gData); this.saveSync(); document.getElementById('menuUsername').innerText = currentUsername.toUpperCase(); document.getElementById('menuAvatar').src = `https://api.dicebear.com/7.x/bottts/svg?seed=${gData.avatar}`; this.setLoading(false); document.getElementById('authScreen').classList.add('hidden'); if (!gData.hasSeenIntro) { window.playIntroFlow(); } else { document.getElementById('menuScreen').classList.remove('hidden'); } } catch(e) { }
         },
         openSwitchAccount: function() { gData = { username: "", coins: 0, stats: {}, owned: [], equip: {} }; document.getElementById('menuScreen').classList.add('hidden'); document.getElementById('authScreen').classList.remove('hidden'); document.getElementById('authClose').classList.remove('hidden'); document.getElementById('inpUser').value = ''; document.getElementById('inpPass').value = ''; this.msg("Vui lòng đăng nhập tài khoản khác", "var(--y)"); },
         cancelAuth: function() { if(!window.auth.currentUser) return; document.getElementById('authScreen').classList.add('hidden'); document.getElementById('menuScreen').classList.remove('hidden'); },
@@ -592,38 +658,50 @@ if(gData.hiddenSkills.aura.activated) {
                     addText(Math.floor(dmg), e.x, e.y - 15, isCrit, isCrit ? '#ffcc00' : '#fff'); spawnParticles(b.x, b.y, b.c, 3, 0.5); 
                     if(b.type !== 'pierce') { bPool.release(b); bullets.splice(j,1); }  
     
-                    if(e.hp < 0.2) {   
-                        // Nếu là quái sự kiện
-if(e.type === 'meteor' || e.type === 'supply') {
-    if (e.type === 'meteor') {
-        AudioSys.playNoise(0.15); // Tiếng "đùm" ngắn, vừa tai, không điếc tai
-        doShake(5); // Rung nhẹ hơn tàu tiếp tế
-        
-        // Cột bụi bốc thẳng lên trên (không lan ra 4 phía che màn hình)
-        for(let p_i=0; p_i<15; p_i++) {
-            let p = pPool.get();
-            if(p) {
-                p.x = e.x + (Math.random()*20-10);
-                p.y = e.y;
-                p.color = '#777777';
-                p.vx = (Math.random()-0.5) * 1.5; // Tạt ngang rất ít
-                p.vy = -Math.random() * 5 - 2; // Bay thốc lên trên
-                p.life = 1.0; p.decay = 0.05; p.size = Math.random()*4+2;
-                particles.push(p);
+                    // --- LOGIC XỬ LÝ KHI KẺ ĐỊCH BỊ TIÊU DIỆT ---
+if (e.hp <= 0) {
+    // 1. Xử lý quái sự kiện
+    if (e.type === 'meteor' || e.type === 'supply') {
+        if (e.type === 'meteor') {
+            AudioSys.playNoise(0.1);
+            doShake(3);
+            // Hiệu ứng bụi đá
+            for(let p_i=0; p_i<10; p_i++) {
+                let p = pPool.get();
+                if(p) {
+                    Object.assign(p, { x: e.x, y: e.y, color: '#888', vx: (Math.random()-0.5)*2, vy: -Math.random()*4, life: 1.0, decay: 0.04, size: Math.random()*3+1 });
+                    particles.push(p);
+                }
             }
+        } else {
+            AudioSys.sfxExplode();
+            spawnParticles(e.x, e.y, e.color, 25);
+            doShake(8);
         }
-    } else {
-        AudioSys.sfxExplode(); spawnParticles(e.x, e.y, e.color, 30); doShake(10);
-    }
 
-    // Rớt nguyên liệu chế tạo (Rate cao)
-    let mType = 'mat_scrap';
-    let r = Math.random();
-    if(e.type === 'supply') { if(r<0.1) mType = 'mat_void'; else if(r<0.3) mType = 'mat_crystal'; else mType = 'mat_plasma'; }
-    else { if(r<0.1) mType = 'mat_crystal'; else if(r<0.3) mType = 'mat_plasma'; }
+        // Rớt nguyên liệu chế tạo (Materials)
+        let mType = 'mat_scrap';
+        let r = Math.random();
+        if (e.type === 'supply') {
+            if (r < 0.15) mType = 'mat_void';
+            else if (r < 0.4) mType = 'mat_crystal';
+            else mType = 'mat_plasma';
+        } else {
+            if (r < 0.2) mType = 'mat_plasma';
+        }
+        items.push({ x: e.x, y: e.y, t: 'mat', mType: mType });
+    } 
     
-    items.push({x: e.x, y: e.y, t: 'mat', mType: mType});
-    ePool.release(e); enemies.splice(i,1); break;
+    // 2. Logic rơi Bản thiết kế ẩn (Blueprints) từ Boss
+    else if (e.type === 'boss') {
+        let bpType = null;
+        if (game.lvl === 10 && !gData.hiddenSkills.aura.unlockedBlueprint) bpType = 'aura';
+        else if (game.lvl === 20 && !gData.hiddenSkills.nano.unlockedBlueprint) bpType = 'nano';
+        else if (game.lvl === 30 && !gData.hiddenSkills.overclock.unlockedBlueprint) bpType = 'overclock';
+        else if (game.lvl === 40 && !gData.hiddenSkills.aegis.unlockedBlueprint) bpType = 'aegis';
+        
+        if (bpType) items.push({ x: e.x, y: e.y, t: 'bp', bpId: bpType });
+    }
 }
 
 const coinMultiplier = isHardcoreMode ? 1.5 : 1; let rewardAmount = 0;
