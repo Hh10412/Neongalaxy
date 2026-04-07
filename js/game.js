@@ -296,7 +296,6 @@ function getSecureDate() {
       
     function startGame() {  
     document.getElementById('bossHud').style.display = 'none';
-        syncServerTime(); 
         enterFullScreen(); 
         if (!gData.inventory) {
     gData.inventory = { mat_scrap: 0, mat_plasma: 0, mat_crystal: 0, mat_void: 0, card_bronze: 0, card_silver: 0, card_gold: 0, card_plat: 0 };
