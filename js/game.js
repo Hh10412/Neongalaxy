@@ -723,8 +723,7 @@ if(gData.hiddenSkills.aura.activated) {
                 }  
             } else { if(b.type==='homing') { ctx.fillRect(b.x-b.r, b.y-b.r, b.r*2, b.r*2); } else ctx.fillRect(b.x-b.w/2, b.y, b.w, b.h); }
             if(b.y < -100 || b.y > H+100 || b.x < -50 || b.x > W+50) { bPool.release(b); bullets.splice(i,1); }  
-        }  
-    }  
+        }  }
     
     function getEnemyDamage(type) { let baseTankDmg = 10 + (game.lvl - 1) * 5; if (type === 'rusher') return baseTankDmg + (player.maxHp * 0.05); if (type === 'tank') return baseTankDmg; if (type === 'sniper') return baseTankDmg * 1.2; return baseTankDmg * 0.8; }
       
@@ -1399,6 +1398,7 @@ function updateCraftingUI() {
     document.getElementById('txtCB').innerText = gData.inventory.card_bronze;
     document.getElementById('txtCS').innerText = gData.inventory.card_silver;
     document.getElementById('txtCG').innerText = gData.inventory.card_gold;
+    document.getElementById('txtCP').innerText = gData.inventory.card_plat;
 
     let skillHTML = "";
     const skillsDef = [
@@ -1424,8 +1424,14 @@ function updateCraftingUI() {
 window.craftCard = function(cType, sc, pl, cr, vo) {
     if(gData.inventory.mat_scrap >= sc && gData.inventory.mat_plasma >= pl && gData.inventory.mat_crystal >= cr && gData.inventory.mat_void >= vo) {
         gData.inventory.mat_scrap -= sc; gData.inventory.mat_plasma -= pl; gData.inventory.mat_crystal -= cr; gData.inventory.mat_void -= vo;
-        gData.inventory[cType]++;
-        save(); updateCraftingUI(); alert("Chế tạo thành công!");
+        
+        let type = cType.replace('card_', ''); // Chuyển 'card_bronze' thành 'bronze'
+        if(!gData.craftedCards) gData.craftedCards = {};
+        gData.craftedCards[type] = (gData.craftedCards[type] || 0) + 1;
+        
+        save();
+        updateCraftingUI();
+        alert("Đã ép thành công! Thẻ đã có trong kho Trang bị.");
     } else alert("Không đủ nguyên liệu!");
 };
 
@@ -1531,15 +1537,6 @@ window.unequipCardFromItem = function(slotIndex) {
     if(card) {
         // Trả lại đúng kho thẻ ĐÃ ÉP
         gData.craftedCards[card] = (gData.craftedCards[card] || 0) + 1;
-        gData.itemCards[currentPopupItemId][slotIndex] = null;
-        save(); renderCardPopup();
-    }
-};
-
-window.unequipCardFromItem = function(slotIndex) {
-    let card = gData.itemCards[currentPopupItemId][slotIndex];
-    if(card) {
-        gData.inventory[card] = (gData.inventory[card] || 0) + 1;
         gData.itemCards[currentPopupItemId][slotIndex] = null;
         save(); renderCardPopup();
     }
