@@ -77,6 +77,18 @@ async function getServerTime() {
     return Date.now(); // fallback nếu offline
   }
 }
+async function syncServerTimeOffset() {
+    try {
+        const res = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC');
+        const data = await res.json();
+        const serverTime = new Date(data.utc_datetime).getTime();
+        serverTimeOffset = serverTime - Date.now();
+    } catch {
+        serverTimeOffset = 0; // Fallback nếu offline
+    }
+}
+// Gọi hàm này ngay khi game vừa load lên
+syncServerTimeOffset();
 // Hàm thay thế cho Date.now() và new Date()
 function getSecureTime() {
     return Date.now() + serverTimeOffset; 
@@ -100,8 +112,21 @@ function getSecureDate() {
     
     const BOSS_TEMPLATES = [ { id: 1, name: "Vanguard Alpha", hpMult: 20, slots: 1, allowed: [BULLET_PATTERNS.SPREAD, BULLET_PATTERNS.LASER], color: '#ff3333' }, { id: 2, name: "Spinner Drone", hpMult: 30, slots: 2, allowed: [BULLET_PATTERNS.SPIRAL, BULLET_PATTERNS.SPREAD], color: '#33ff33' }, { id: 3, name: "Laser Core", hpMult: 40, slots: 2, allowed: [BULLET_PATTERNS.LASER, BULLET_PATTERNS.HOMING], color: '#3333ff' }, { id: 4, name: "Wave Rider", hpMult: 50, slots: 2, allowed: [BULLET_PATTERNS.WAVE, BULLET_PATTERNS.SPIRAL], color: '#00ffff' }, { id: 5, name: "Hunter Killer", hpMult: 60, slots: 3, allowed: [BULLET_PATTERNS.HOMING, BULLET_PATTERNS.SPREAD, BULLET_PATTERNS.LASER], color: '#ff00ff' }, { id: 6, name: "Galaxy Crusher", hpMult: 70, slots: 2, allowed: [BULLET_PATTERNS.WAVE, BULLET_PATTERNS.SPREAD], color: '#ffff00' }, { id: 7, name: "Neon Phantom", hpMult: 80, slots: 3, allowed: [BULLET_PATTERNS.SPIRAL, BULLET_PATTERNS.LASER, BULLET_PATTERNS.HOMING], color: '#ffffff' }, { id: 8, name: "Aegis Defender", hpMult: 90, slots: 1, allowed: [BULLET_PATTERNS.SPIRAL, BULLET_PATTERNS.WAVE], color: '#ffaa00' }, { id: 9, name: "Oblivion Engine", hpMult: 120, slots: 3, allowed: [BULLET_PATTERNS.SPREAD, BULLET_PATTERNS.LASER, BULLET_PATTERNS.SPIRAL, BULLET_PATTERNS.WAVE], color: '#b200ff' }, { id: 10, name: "Neural Overlord", hpMult: 200, slots: 4, allowed: Object.values(BULLET_PATTERNS), color: '#ff0000' } ];
 
-    let securitySeed = Math.floor(Math.random() * 999) + 100; let coinHash = 0; const syncHash = () => { coinHash = gData.coins ^ securitySeed; };
-    const verifyIntegrity = () => { if ((gData.coins ^ securitySeed) !== coinHash) { alert("Phát hiện dữ liệu bất thường. Trận đấu sẽ khởi động lại."); location.reload(); return false; } return true; };
+    // Gắn thẳng securitySeed vào gData để nó được lưu lại qua các lần chơi
+let coinHash = 0; 
+const syncHash = () => { 
+    if(!gData.securitySeed) gData.securitySeed = Math.floor(Math.random() * 999) + 100;
+    coinHash = gData.coins ^ gData.securitySeed; 
+};
+const verifyIntegrity = () => { 
+    if(!gData.securitySeed) gData.securitySeed = Math.floor(Math.random() * 999) + 100;
+    if ((gData.coins ^ gData.securitySeed) !== coinHash) { 
+        alert("Phát hiện dữ liệu bất thường. Trận đấu sẽ khởi động lại."); 
+        location.reload(); 
+        return false; 
+    } 
+    return true; 
+};
     const secureAddCoins = (amt) => { if(verifyIntegrity()){ gData.coins += amt; if(typeof trackQuest === 'function') trackQuest('gold', amt); syncHash(); save(); } };
     const secureDeductCoins = (amt) => { if(!verifyIntegrity()) return false; if(gData.coins >= amt) { gData.coins -= amt; syncHash(); save(); return true; } return false; };
      
@@ -207,8 +232,14 @@ function getSecureDate() {
                         
                         // Nếu dữ liệu trên Cloud mới hơn (do thiết bị khác vừa chơi/cập nhật)
                         if (cloudTime > localTime) {
-                            gData = cloudData;
-                            syncHash();
+    // CHẶN: Nếu người chơi đang trong trận, KHÔNG ĐƯỢC overwrite data
+    if (typeof state !== 'undefined' && (state === 'PLAYING' || state.startsWith('PAUSED'))) {
+        console.warn("Cloud data mới hơn nhưng đang trong trận, hoãn đồng bộ!");
+        return; 
+    }
+    
+    gData = cloudData;
+    syncHash();
                             secureSaveLocal(gData);
                             
                             // 1. Làm mới UI ở màn hình chính
@@ -369,18 +400,24 @@ function getSecureDate() {
         if (!gData.inventory) {
     gData.inventory = { mat_scrap: 0, mat_plasma: 0, mat_crystal: 0, mat_void: 0, card_bronze: 0, card_silver: 0, card_gold: 0, card_plat: 0 };
 }
-if (!gData.hiddenSkills) {
-// THÊM ĐOẠN NÀY VÀO HÀM startGame()
-if (!gData.itemCards) {
-    gData.itemCards = {}; // Lưu thẻ theo ID của từng loại trang bị riêng biệt
-}
-    gData.hiddenSkills = { 
-        aura: { unlockedBlueprint: false, activated: false }, 
-        nano: { unlockedBlueprint: false, activated: false }, 
-        overclock: { unlockedBlueprint: false, activated: false }, 
-        aegis: { unlockedBlueprint: false, activated: false } 
-    };
-}
+        if (!gData.hiddenSkills) {
+            if (!gData.itemCards) {
+                gData.itemCards = {}; 
+            }
+            gData.hiddenSkills = { 
+                aura: { unlockedBlueprint: false, activated: false, crafted: false }, 
+                nano: { unlockedBlueprint: false, activated: false, crafted: false }, 
+                overclock: { unlockedBlueprint: false, activated: false, crafted: false }, 
+                aegis: { unlockedBlueprint: false, activated: false, crafted: false } 
+            };
+        } else {
+            // Cập nhật cho save game cũ: Tự động đánh dấu là 'Đã mua' nếu trước đó 'Đã kích hoạt'
+            for (let k in gData.hiddenSkills) {
+                if (typeof gData.hiddenSkills[k].crafted === 'undefined') {
+                    gData.hiddenSkills[k].crafted = gData.hiddenSkills[k].activated;
+                }
+            }
+        }
 
         if (AudioSys.enabled) { AudioSys.init(); if (AudioSys.ctx && AudioSys.ctx.state === 'suspended') AudioSys.ctx.resume(); AudioSys.playBGM(); }
           
@@ -717,9 +754,20 @@ if(gData.hiddenSkills.aura.activated) {
                 
                 let pdx = b.x-player.x, pdy = b.y-player.y;
                 if(player.invuln <= 0 && (pdx*pdx + pdy*pdy < (b.r + 10)*(b.r + 10))) {  
-                    if(isHardcoreMode) player.hp = 0; else player.hp -= b.dmg; 
-                    player.invuln = 40; doShake(10); addText(isHardcoreMode ? "FATAL!" : "-" + Math.floor(b.dmg), player.x, player.y - 30, false, '#ff3333'); AudioSys.sfxHit(); 
-                    bPool.release(b); bullets.splice(i, 1); if(player.hp <= 0) gameOver(); continue;  
+if(isHardcoreMode) player.hp = 0; else player.hp -= b.dmg; 
+
+// KỸ NĂNG AEGIS
+if (player.hp <= 0 && gData.hiddenSkills.aegis.activated && !player.aegisUsed) {
+    player.hp = player.maxHp * 0.2; // Cứu sống, hồi 20% máu
+    player.invuln = 180; // Bất tử 3 giây (60fps * 3)
+    player.aegisUsed = true;
+    addText("AEGIS PROTECT!", player.x, player.y - 40, true, '#00ffff', true);
+}
+
+player.invuln = 40; doShake(10); addText(isHardcoreMode ? "FATAL!" : "-" + Math.floor(b.dmg), player.x, player.y - 30, false, '#ff3333'); AudioSys.sfxHit(); 
+                    bPool.release(b); bullets.splice(i, 1); 
+if(player.hp <= 0) { gameOver(); return; } // Dùng return để thoát hẳn khỏi hàm
+continue;  
                 }  
             } else { if(b.type==='homing') { ctx.fillRect(b.x-b.r, b.y-b.r, b.r*2, b.r*2); } else ctx.fillRect(b.x-b.w/2, b.y, b.w, b.h); }
             if(b.y < -100 || b.y > H+100 || b.x < -50 || b.x > W+50) { bPool.release(b); bullets.splice(i,1); }  
@@ -758,10 +806,20 @@ if(gData.hiddenSkills.aura.activated) {
             if(pEdx*pEdx + pEdy*pEdy < (e.r + 12)*(e.r + 12)) {  
                 if(player.invuln <= 0) {  
                     let dmg = e.type === 'boss' ? Math.floor(player.maxHp * 0.3) : Math.floor(getEnemyDamage(e.type));
-                    if(isHardcoreMode) player.hp = 0; else player.hp -= dmg; player.invuln = 50; 
+                    if(isHardcoreMode) player.hp = 0; else player.hp -= dmg; 
+
+// KỸ NĂNG AEGIS
+if (player.hp <= 0 && gData.hiddenSkills.aegis.activated && !player.aegisUsed) {
+    player.hp = player.maxHp * 0.2; // Cứu sống, hồi 20% máu
+    player.invuln = 180; // Bất tử 3 giây
+    player.aegisUsed = true;
+    addText("AEGIS PROTECT!", player.x, player.y - 40, true, '#00ffff', true);
+}
+player.invuln = 50; 
                     if(e.type === 'boss') { let impactDmg = player.atk * 10; e.hp -= impactDmg; addText(Math.floor(impactDmg), e.x, e.y, true, '#ffaa00'); spawnParticles(e.x, e.y, e.color, 15); }
                     doShake(Math.min(dmg / 10, 30)); addText(isHardcoreMode ? "FATAL!" : "-" + Math.floor(dmg), player.x, player.y - 30, false, '#ff3333'); AudioSys.sfxHit(); spawnParticles(player.x, player.y, '#f00', 20, 2);  
-                    if(e.type !== 'boss') { ePool.release(e); enemies.splice(i, 1); } if(player.hp <= 0) gameOver();
+                    if(e.type !== 'boss') { ePool.release(e); enemies.splice(i, 1); } 
+                    if(player.hp <= 0) { gameOver(); return; } // Thêm return
                                         if(e.type === 'boss' && e.hp <= 0) { 
                         game.boss = false; uiCache.bossHpBar.parentElement.parentElement.style.display='none'; game.score += 5000; if (e.name === "Neural Overlord") gData.hasWon = true; save(); AudioSys.sfxExplode(); spawnParticles(e.x, e.y, e.color, 50); ePool.release(e); enemies.splice(i, 1); 
                     }
@@ -925,8 +983,8 @@ else if(it.t==='bp') {
     function checkLvl() { 
     if(game.exp >= game.nextExp) { 
         state = 'PAUSED'; 
-        game.exp = 0; 
-        game.nextExp *= 1.4; 
+        game.exp -= game.nextExp; // Trừ đi EXP cần thiết để giữ lại EXP thừa
+        game.nextExp = Math.floor(game.nextExp * 1.4); 
         game.lvl++; 
         
         game.activeEvent = null; // Tắt sự kiện của cấp cũ
@@ -1413,20 +1471,49 @@ function updateCraftingUI() {
 
     skillsDef.forEach(s => {
         let sk = gData.hiddenSkills[s.id];
+        // Đồng bộ dữ liệu cũ nếu thiếu thuộc tính crafted
+        if(typeof sk.crafted === 'undefined') sk.crafted = sk.activated;
+
         if(!sk.unlockedBlueprint) {
-            skillHTML += `<div style="padding:10px; border:1px dashed #555; text-align:center; color:#555;">Kỹ năng ??? (Cần Bản thiết kế từ Boss)</div>`;
-        } else if (sk.activated) {
-            skillHTML += `<div style="padding:10px; border:1px solid #0f0; background:rgba(0,255,0,0.1); text-align:center; color:#0f0;"><b>${s.n}</b><br><span style="font-size:10px;">Đã kích hoạt</span></div>`;
+            skillHTML += `<div style="padding:10px; border:1px dashed #555; text-align:center; color:#555; border-radius:5px;">Kỹ năng ??? (Cần Bản thiết kế từ Boss)</div>`;
+        } else if (sk.crafted) {
+            if (sk.activated) {
+                // UI Đang Trang Bị (Có nút tháo ra)
+                skillHTML += `<div style="padding:10px; border:1px solid #0f0; background:rgba(0,255,0,0.1); display:flex; justify-content:space-between; align-items:center; border-radius:5px;">
+                    <div style="text-align:left; color:#0f0;"><b>${s.n}</b><br><span style="font-size:10px; color:#aaa;">${s.d}</span></div>
+                    <button class="btn-main btn-small" onclick="toggleSkill('${s.id}')" style="margin:0; background:var(--r); color:#fff; border:none; box-shadow:0 0 10px var(--r);">THÁO RA</button>
+                </div>`;
+            } else {
+                // UI Đã mua nhưng Chưa Trang Bị (Có nút lắp vào)
+                skillHTML += `<div style="padding:10px; border:1px solid #555; background:rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center; border-radius:5px;">
+                    <div style="text-align:left; color:#aaa;"><b>${s.n}</b><br><span style="font-size:10px; color:#888;">${s.d}</span></div>
+                    <button class="btn-main btn-small" onclick="toggleSkill('${s.id}')" style="margin:0; background:#333; color:var(--p); border:1px solid var(--p);">TRANG BỊ</button>
+                </div>`;
+            }
         } else {
-            skillHTML += `<button class="btn-main btn-sec" style="font-size:11px;" onclick="unlockSkill('${s.id}', ${s.req[0]}, ${s.req[1]}, ${s.req[2]}, ${s.req[3]})">MỞ KHÓA: ${s.n}<br><span style="font-size:9px;">Cần: ${s.req[1]} Plasma, ${s.req[2]} Crystal, ${s.req[3]} Void</span></button>`;
+            // UI Chưa Mua (Nút Mở khóa bằng nguyên liệu)
+            skillHTML += `<button class="btn-main btn-sec" style="font-size:11px; display:flex; flex-direction:column; width:100%; text-align:left; padding:10px; margin-bottom:5px;" onclick="unlockSkill('${s.id}', ${s.req[0]}, ${s.req[1]}, ${s.req[2]}, ${s.req[3]})">
+                <span style="color:var(--y); font-weight:bold; font-size:14px;">MỞ KHÓA: ${s.n}</span>
+                <span style="font-size:10px; color:#aaa; margin-top:3px;">${s.d}</span>
+                <span style="font-size:10px; margin-top:5px; color:#0ff;">Cần: ${s.req[1]} Plasma, ${s.req[2]} Crystal, ${s.req[3]} Void</span>
+            </button>`;
         }
     });
     document.getElementById('hiddenSkillsGrid').innerHTML = skillHTML;    
 }
 
 window.craftCard = function(cType, sc, pl, cr, vo) {
+    // Thêm check: Kiểm tra xem có phôi thẻ không
+    if((gData.inventory[cType] || 0) < 1) {
+        return alert("Bạn không có đủ Phôi Thẻ (" + cType.replace('card_', '') + ") trong kho!");
+    }
+
     if(gData.inventory.mat_scrap >= sc && gData.inventory.mat_plasma >= pl && gData.inventory.mat_crystal >= cr && gData.inventory.mat_void >= vo) {
+        // Trừ nguyên liệu
         gData.inventory.mat_scrap -= sc; gData.inventory.mat_plasma -= pl; gData.inventory.mat_crystal -= cr; gData.inventory.mat_void -= vo;
+        
+        // TRỪ PHÔI THẺ
+        gData.inventory[cType] -= 1;
         
         let type = cType.replace('card_', ''); // Chuyển 'card_bronze' thành 'bronze'
         if(!gData.craftedCards) gData.craftedCards = {};
@@ -1441,9 +1528,19 @@ window.craftCard = function(cType, sc, pl, cr, vo) {
 window.unlockSkill = function(id, sc, pl, cr, vo) {
     if(gData.inventory.mat_scrap >= sc && gData.inventory.mat_plasma >= pl && gData.inventory.mat_crystal >= cr && gData.inventory.mat_void >= vo) {
         gData.inventory.mat_scrap -= sc; gData.inventory.mat_plasma -= pl; gData.inventory.mat_crystal -= cr; gData.inventory.mat_void -= vo;
-        gData.hiddenSkills[id].activated = true;
-        save(); updateCraftingUI(); alert("Đã kích hoạt kỹ năng tối mật!");
-    } else alert("Không đủ nguyên liệu!");
+        gData.hiddenSkills[id].crafted = true;
+        gData.hiddenSkills[id].activated = true; // Auto trang bị ngay sau khi chế tạo
+        save(); updateCraftingUI(); alert("Đã khôi phục và trang bị công nghệ!");
+    } else alert("Thiếu nguyên liệu cấu thành!");
+};
+
+window.toggleSkill = function(id) {
+    gData.hiddenSkills[id].activated = !gData.hiddenSkills[id].activated;
+    save();
+    updateCraftingUI();
+    if (typeof AudioSys !== 'undefined' && AudioSys.enabled) {
+        AudioSys.playTone(gData.hiddenSkills[id].activated ? 800 : 400, 'sine', 0.1); 
+    }
 };
 
         // Gắn các hàm Gacha và Quest vào global window
