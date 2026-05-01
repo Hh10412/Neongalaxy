@@ -1389,16 +1389,62 @@ function claimQuest(qId, tab) {
     renderQuests(); 
 }
 // --- KẾT THÚC HỆ THỐNG NHIỆM VỤ ---
+    function renderEquipGrid(id, db, type) { 
+        const el = document.getElementById(id); el.innerHTML = ''; 
+        for(let k in db) { 
+            let item = db[k], owned = gData.owned.includes(k), equipped = gData.equip[type] === k; 
+            let div = document.createElement('div'); 
+            div.className = `equip-card ${equipped?'active':''} ${owned?'owned':''}`; 
+            
+            let pressTimer = null;
+            let isScrolling = false;
+            let startY = 0;
 
-    function renderEquipGrid(id, db, type) { const el = document.getElementById(id); el.innerHTML = ''; for(let k in db) { let item = db[k], owned = gData.owned.includes(k), equipped = gData.equip[type] === k; let div = document.createElement('div'); div.className = `equip-card ${equipped?'active':''} ${owned?'owned':''}`; let pressTimer;
-div.onmousedown = div.ontouchstart = (e) => { 
-    pressTimer = window.setTimeout(() => { openCardPopup(k, type, item.n); pressTimer = null; }, 500); 
-};
-div.onmouseup = div.ontouchend = (e) => { 
-    if(pressTimer) { clearTimeout(pressTimer); handleEquipClick(k, type, db[k].cost); }
-};
-div.onmouseleave = div.ontouchcancel = () => { if(pressTimer) clearTimeout(pressTimer); };
-div.innerHTML = `<span class="equip-icon" style="color:${item.color||'#fff'}">${type=='w' ? '⚔️' : (type=='h' ? '🛡️' : '🛸')}</span><span class="equip-name">${item.n}</span><span class="equip-stat">${item.d}</span>${equipped ? '<b style="color:var(--p);font-size:11px">ĐANG DÙNG</b>' : (owned ? '<span style="color:#ff0;font-size:10px">SỞ HỮU</span>' : `<span class="cost-badge">${item.cost} 💰</span>`)}`; el.appendChild(div); } }  
+            div.onmousedown = div.ontouchstart = (e) => { 
+                isScrolling = false;
+                startY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                pressTimer = window.setTimeout(() => { 
+                    if (!isScrolling) {
+                        openCardPopup(k, type, item.n); 
+                    }
+                    pressTimer = null; 
+                }, 500); 
+            };
+            
+            // Thêm sự kiện bắt chuyển động để nhận diện lướt
+            div.onmousemove = div.ontouchmove = (e) => {
+                let currentY = e.touches ? e.touches[0].clientY : e.clientY;
+                // Nếu ngón tay di chuyển hơn 10px, đánh dấu là đang lướt
+                if (Math.abs(currentY - startY) > 10) {
+                    isScrolling = true;
+                    if (pressTimer) {
+                        clearTimeout(pressTimer);
+                        pressTimer = null;
+                    }
+                }
+            };
+
+            div.onmouseup = div.ontouchend = (e) => { 
+                // Chỉ kích hoạt thao tác mua/mặc đồ nếu KHÔNG phải đang lướt
+                if(pressTimer && !isScrolling) { 
+                    clearTimeout(pressTimer); 
+                    pressTimer = null;
+                    handleEquipClick(k, type, db[k].cost); 
+                } 
+            };
+            
+            div.onmouseleave = div.ontouchcancel = () => { 
+                if(pressTimer) {
+                    clearTimeout(pressTimer);
+                    pressTimer = null;
+                }
+            };
+            
+            div.innerHTML = `<span class="equip-icon" style="color:${item.color||'#fff'}">${type=='w' ? '⚔️' : (type=='h' ? '🛡️' : '🛸')}</span><span class="equip-name">${item.n}</span><span class="equip-stat">${item.d}</span>${equipped ? '<b style="color:var(--p);font-size:11px">ĐANG DÙNG</b>' : (owned ? '<span style="color:#ff0;font-size:10px">SỞ HỮU</span>' : `<span class="cost-badge">${item.cost} 💰</span>`)}`; 
+            el.appendChild(div); 
+        } 
+    }
     function handleEquipClick(id, type, cost) { if(gData.owned.includes(id)) { gData.equip[type] = id; save(); openEquip(); AudioSys.playTone(600, 'sine', 0.1); } else { if(secureDeductCoins(cost)) { gData.owned.push(id); gData.equip[type] = id; save(); openEquip(); AudioSys.sfxCoin(); } else { alert("Không đủ vàng hoặc lỗi bảo mật!"); } } }  
     function openShop() { document.getElementById('menuScreen').classList.add('hidden'); document.getElementById('shopScreen').classList.remove('hidden'); document.getElementById('shopCoin').innerText = gData.coins; const g = document.getElementById('shopGrid'); g.innerHTML = ''; for(let k in UPGRADES) { let u = UPGRADES[k], lv = gData.stats[k] || 0, cost = Math.floor(u.cost * Math.pow(1.5, lv)), isMax = lv >= u.max; g.innerHTML += `<div class="equip-card"><span class="equip-name">${u.n} <span style="color:var(--y)">(Lv ${lv})</span></span><span class="equip-stat">${u.desc}</span><button class="btn-main" style="padding:8px; font-size:11px; width:100%; margin:0;" onclick="buyUpgrade('${k}', ${cost}, ${u.max})">${isMax ? 'MAX' : cost + ' 💰'}</button></div>`; } }  
     function buyUpgrade(key, cost, max) { if(!verifyIntegrity()) return; if((gData.stats[key]||0) >= max) return; if(secureDeductCoins(cost)) { gData.stats[key] = (gData.stats[key]||0) + 1; save(); openShop(); AudioSys.sfxCoin(); } else { alert("Cày thêm vàng để nâng!"); } }  
@@ -1491,12 +1537,22 @@ function updateCraftingUI() {
                 </div>`;
             }
         } else {
-            // UI Chưa Mua (Nút Mở khóa bằng nguyên liệu)
-            skillHTML += `<button class="btn-main btn-sec" style="font-size:11px; display:flex; flex-direction:column; width:100%; text-align:left; padding:10px; margin-bottom:5px;" onclick="unlockSkill('${s.id}', ${s.req[0]}, ${s.req[1]}, ${s.req[2]}, ${s.req[3]})">
-                <span style="color:var(--y); font-weight:bold; font-size:14px;">MỞ KHÓA: ${s.n}</span>
-                <span style="font-size:10px; color:#aaa; margin-top:3px;">${s.d}</span>
-                <span style="font-size:10px; margin-top:5px; color:#0ff;">Cần: ${s.req[1]} Plasma, ${s.req[2]} Crystal, ${s.req[3]} Void</span>
-            </button>`;
+            // Tự động lọc ra chỉ các nguyên liệu có yêu cầu > 0
+            let costArr = [];
+            if(s.req[1] > 0) costArr.push(s.req[1] + " Plasma");
+            if(s.req[2] > 0) costArr.push(s.req[2] + " Crystal");
+            if(s.req[3] > 0) costArr.push(s.req[3] + " Void");
+            let costString = "Cần: " + costArr.join(", ");
+
+            // Chuyển thành div vuông vắn (border-radius:5px) giống các ô khác
+            skillHTML += `<div style="padding:10px; border:1px solid var(--y); background:rgba(255,255,0,0.05); display:flex; justify-content:space-between; align-items:center; border-radius:5px;">
+                <div style="text-align:left;">
+                    <b style="color:var(--y); font-size:14px;">${s.n}</b><br>
+                    <span style="font-size:10px; color:#aaa;">${s.d}</span><br>
+                    <span style="font-size:10px; color:#0ff; margin-top:4px; display:inline-block;">${costString}</span>
+                </div>
+                <button class="btn-main btn-small" onclick="unlockSkill('${s.id}', ${s.req[0]}, ${s.req[1]}, ${s.req[2]}, ${s.req[3]})" style="margin:0; background:#333; color:var(--y); border:1px solid var(--y); box-shadow:0 0 10px rgba(255,255,0,0.2);">MỞ KHÓA</button>
+            </div>`;
         }
     });
     document.getElementById('hiddenSkillsGrid').innerHTML = skillHTML;    
